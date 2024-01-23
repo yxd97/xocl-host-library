@@ -1,26 +1,17 @@
-#ifndef LIBHOST_RUNTIME_H
-#define LIBHOST_RUNTIME_H
-
-#include "xcl2/xcl2.hpp"
+#ifndef XOCL_HOSTLIB_RUNTIME_H
+#define XOCL_HOSTLIB_RUNTIME_H
 
 #include <unordered_map>
+#include "xcl2/xcl2.hpp"
+#include "types.hpp"
 
-// 4k aligned vector
-template<typename T>
-using aligned_vector = std::vector<T, aligned_allocator<T> >;
-
-// config words
-enum MigrateDirection {ToDevice, ToHost};
-enum BufferType {ReadOnly, WriteOnly, ReadWrite};
-enum ExecTarget {SW_EMU, HW_EMU, HW};
-
-ExecTarget check_target() {
+ExecMode check_execution_mode() {
     if(xcl::is_emulation()) {
         if(xcl::is_hw_emulation())
-            return ExecTarget::HW_EMU;
-        return ExecTarget::SW_EMU;
+            return ExecMode::HW_EMU;
+        return ExecMode::SW_EMU;
     }
-    return ExecTarget::HW;
+    return ExecMode::HW;
 }
 
 // RunTime class: helps to manage kernels and buffers
@@ -35,17 +26,23 @@ public:
     cl::Context context;
     cl::CommandQueue command_q;
     std::unordered_map<std::string, cl::Kernel> kernels;
-    std::unordered_map<std::string, std::unordered_map<std::string, int>> arg_maps;
+    std::unordered_map<std::string, ArgumentMap> arg_maps;
     std::unordered_map<std::string, cl::Buffer> buffers;
 
-    // program device
+    /**
+     * @brief program the fpga with the xclbin
+     *
+     * @param board_identifier the board identifier
+     * @param xclbin_path path to the xclbin file
+     */
     void program_device(
-        const std::string& device_name,
-        const std::string& board_xsa,
-        const std::string& xclbin_path
+        const BoardIdentifier &board_identifier,
+        const std::string &xclbin_path
     ) {
         // find device
-        std::string target_name = check_target() == ExecTarget::HW ? board_xsa : device_name;
+        std::string target_name =
+            (check_execution_mode() == ExecMode::HW)
+            ? board_identifier.xsa : board_identifier.name;
         bool found_device = false;
         auto devices = xcl::get_xil_devices();
         for (size_t i = 0; i < devices.size(); i++) {
@@ -66,7 +63,11 @@ public:
         // read FPGA binary
         auto file_buf = xcl::read_binary_file(xclbin_path);
         cl::Program::Binaries binaries{{file_buf.data(), file_buf.size()}};
-        OCL_CHECK(this->_errflag, this->_program = cl::Program(context, {this->_device}, binaries, NULL, &(this->_errflag)));
+        OCL_CHECK(
+            this->_errflag, this->_program = cl::Program(
+                context, {this->_device}, binaries, NULL, &(this->_errflag)
+            )
+        );
 
         // create command queue
         OCL_CHECK(
@@ -80,33 +81,64 @@ public:
         );
     }
 
-    // create kernels
-    void create_kernels(
-        const std::vector<std::string> &kernel_list,
-        const std::vector<std::unordered_map<std::string, int>> &kernel_arg_map
+    /**
+     * @brief Create multiple instances of a kernel (specified by nk tags in the Vitis build command)
+     *
+     * @param kernel_signature function signature of the kernel
+     * @param instance_names the names of the instances as a vector of strings
+     */
+    void create_kernel_instances(
+        const KernelSignature &kernel_signature,
+        const std::vector<std::string> &instance_names
     ) {
-        for (size_t i = 0; i < kernel_list.size(); i++) {
+        for (size_t i = 0; i < instance_names.size(); i++) {
+            std::string instance_path = kernel_signature.name + ":{" + instance_names[i] + "}";
             OCL_CHECK(
                 this->_errflag,
-                this->kernels[kernel_list[i]] = cl::Kernel(
-                    this->_program, kernel_list[i].c_str(), &(this->_errflag)
+                this->kernels[instance_names[i]] = cl::Kernel(
+                    this->_program, instance_path.c_str(), &(this->_errflag)
                 )
             );
-            this->arg_maps[kernel_list[i]] = kernel_arg_map[i];
+            this->arg_maps[instance_names[i]] = kernel_signature.argmap;
         }
     }
 
-    // set kernel arguments
-    template<typename T>
-    void set_kernel_arg(
-        const std::string& kernel_name,
-        const std::string& arg_name,
-        const T& arg_val
+    /**
+     * @brief Create a kernel
+     *
+     * @param kernel_signature function signature of the kernel
+     */
+    void create_kernel(
+        const KernelSignature &kernel_signature
     ) {
         OCL_CHECK(
             this->_errflag,
-            this->_errflag = this->kernels[kernel_name].setArg(
-                this->arg_maps[kernel_name][arg_name],
+            this->kernels[kernel_signature.name] = cl::Kernel(
+                this->_program, kernel_signature.name.c_str(), &(this->_errflag)
+            )
+        );
+        this->arg_maps[kernel_signature.name] = kernel_signature.argmap;
+    }
+
+    /**
+     * @brief Set the kernel arg object
+     *
+     * @tparam argument type
+     * @param instance_name
+     * @param arg_name
+     * @param arg_val
+     */
+    template<typename T>
+    void set_kernel_arg(
+        const std::string& instance_name,
+        const std::string& arg_name,
+        const T& arg_val
+    ) {
+        // std::cout << "Setting kernel arg " << arg_name << " for instance " << instance_name << std::endl;
+        OCL_CHECK(
+            this->_errflag,
+            this->_errflag = this->kernels[instance_name].setArg(
+                this->arg_maps[instance_name][arg_name],
                 arg_val
             )
         );
@@ -155,6 +187,7 @@ public:
                         &(this->_errflag)
                     );
                 )
+            break;
             default:
                 std::cout << "[ERROR]: Unsupported buffer type!"<< std::endl;
             break;
@@ -166,28 +199,32 @@ public:
         switch (direction) {
             case ToDevice:
                 for (auto bn : buffer_list) {
-                    OCL_CHECK(
-                        this->_errflag,
-                        this->_errflag = this->command_q.enqueueMigrateMemObjects(
-                            {this->buffers[bn]},
-                            0
-                        )
+                    this->_errflag = this->command_q.enqueueMigrateMemObjects(
+                        {this->buffers[bn]},
+                        0
                     );
+                    if (this->_errflag != CL_SUCCESS) {
+                        throw std::runtime_error(
+                            "Failed to migrate data for buffer " + bn + " to device!"
+                        );
+                    }
                 }
             break;
             case ToHost:
                 for (auto bn : buffer_list) {
-                    OCL_CHECK(
-                        this->_errflag,
-                        this->_errflag = this->command_q.enqueueMigrateMemObjects(
-                            {this->buffers[bn]},
-                            CL_MIGRATE_MEM_OBJECT_HOST
-                        )
+                    this->_errflag = this->command_q.enqueueMigrateMemObjects(
+                        {this->buffers[bn]},
+                        CL_MIGRATE_MEM_OBJECT_HOST
                     );
+                    if (this->_errflag != CL_SUCCESS) {
+                        throw std::runtime_error(
+                            "Failed to migrate data for buffer " + bn + " to host!"
+                        );
+                    }
                 }
             break;
             default:
-                std::cout << "[ERROR]: Unsupported data migration direction!"<< std::endl;
+                throw std::runtime_error("Unsupported migration direction!");
             break;
         }
     }
@@ -202,4 +239,4 @@ public:
 
 };
 
-#endif //LIBHOST_RUNTIME_H
+#endif //XOCL_HOSTLIB_RUNTIME_H

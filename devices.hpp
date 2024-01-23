@@ -1,16 +1,19 @@
-#ifndef LIBHOST_DEVICES_H
-#define LIBHOST_DEVICES_H
+#ifndef XOCL_HOSTLIB_DEVICES_H
+#define XOCL_HOSTLIB_DEVICES_H
 
 #include "xcl2/xcl2.hpp"
+#include "types.hpp"
 
 namespace alveo {
 
 #define CHANNEL_NAME(n) n | XCL_MEM_TOPOLOGY
 
 namespace u280 {
-    // u280 device name
-    std::string name = "xilinx_u280_gen3x16_xdma_1_202211_1";
-    std::string board_xsa = "xilinx_u280_gen3x16_xdma_base_1";
+    // u280 device identifier
+    const BoardIdentifier identifier = {
+        "xilinx_u280_gen3x16_xdma_1_202211_1",
+        "xilinx_u280_gen3x16_xdma_base_1"
+    };
 
     // u280 memory channels
     const int HBM[32] = {
@@ -23,8 +26,8 @@ namespace u280 {
         CHANNEL_NAME(30), CHANNEL_NAME(31)
     };
     const int DDR[2] = {CHANNEL_NAME(32), CHANNEL_NAME(33)};
-};
+} // namespace u280
 
 } // namespace alveo
 
-#endif //LIBHOST_DEVICES_H
+#endif //XOCL_HOSTLIB_DEVICES_H
