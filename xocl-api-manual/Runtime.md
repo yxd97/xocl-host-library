@@ -63,3 +63,7 @@ are issued to the queue, which is essential for running multiple compute engines
 
 > We can also specify dependencies between commands in a OOO queue with the OpenCL Event API,
 which are not widely used and is out of the scope of this manual.
+
+Tasks can be enqueued with the `enqueueTask()` or `enqueueMigrationMemObjects()` methods of the command queue.
+These enqueue calls are all non-blocking, which means they return immediately after the task is launched.
+A call to `finish()` of the command queue will block until all tasks in the queue are finished.

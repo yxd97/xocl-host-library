@@ -42,6 +42,8 @@ and DDR channels 0 ~ 1, with bank id 32 ~ 33.
 > Some tutorials may not use the `CL_MEM_EXT_PTR_XILINX` flag and `cl_mem_ext_ptr_t` to
 associate a buffer with a memory bank on device.
 
+> There might be other ways to create a buffer on a specific memory bank.
+
 ### Data Movement
 Although you cannot access data via an OpenCL buffer, there are APIs to
 sync the content of the buffer from host to device and vice versa.
@@ -51,10 +53,33 @@ The command queue provides `enqueueMigrateMemObjects()` method to do this:
 cl_migration_flags direction = 0;
 cl_int err = cq.enqueueMigrateMemObjects({buf1, buf2}, direction)
 ```
+The first argument is a list of buffers to be migrated.
+The second argument is a flag to specify the direction of data movement.
 The `cl_migration_flags` can take 0 or 1 to specify the direction of data movement.
 0 means host to device, and 1 means device to host.
 
-A fun thing is, the XOCL library defines a macro, `CL_MIGRATE_MEM_OBJECT_HOST`,
-that expands to 1, but no macro for 0.
+> A fun thing is, the OpenCL library defines a macro, `CL_MIGRATE_MEM_OBJECT_HOST`,
+that expands to 1, but no macro for 0. This is because the `enqueueMigrateMemObjects()` method
+belongs to a specific command queue, and the command queue is created on a specific device.
+
+`enqueueMigrateMemObjects()` is a non-blocking. It returns immediately after the migration is launched.
+A call to `finish()` of the command queue will block until all tasks in the queue are finished.
 
 ### Memory Alignment
+Since the data movement between host and device is performed by PCI-e DMA, a good
+memory alignment can improve the performance. If a data transfer crosses a 4KB boundary,
+the DMA engine will split it into two transfers. Therefore, it is recommended to align
+the data to 4KB boundary.
+
+XOCL provides a `aligned_allocator` class which you can use when creating `std::vector`
+objects to ensure the alignment:
+```cpp
+std::vector<int, aligned_allocator<int>> data;
+```
+
+For redable code, you can define a type alias:
+```cpp
+template <typename T>
+using aligned_vector = std::vector<T, aligned_allocator<T>>;
+aligned_vector<int> data;
+```

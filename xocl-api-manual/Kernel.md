@@ -90,3 +90,12 @@ err = knl.setArg(argc++, 3.1415926);
 ```
 
 ## Launch Kernel(s)
+A kernel is launched by the `enqueueTask()` method of the command queue:
+```cpp
+// assume we already created a command queue in variable `cq`
+cl_int err = cq.enqueueTask(knl);
+// error checking is omitted here
+```
+
+The `enqueueTask()` call is non-blocking. It returns immediately after the kernel is launched.
+A call to `finish()` of the command queue will block until all tasks in the queue are finished.
