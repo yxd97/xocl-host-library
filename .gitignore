@@ -1,1 +1,27 @@
+# vscode configuration
 .vscode
+
+# build directories
+build*
+
+# generated emulation config files
+emconfig.json
+ext_metadata.json
+
+# profiling files
+xrt.run_summary
+summary.csv
+device_trace*.csv
+xsa.xml
+
+# log files
+*.log
+
+# Vitis cache files
+.Xil
+.ipcache
+.run
+
+# compiled host binaries
+spmv_host
+
