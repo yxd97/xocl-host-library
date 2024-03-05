@@ -6,14 +6,18 @@
 #include <map>
 #include <unordered_map>
 
-// config words
-enum MigrateDirection {ToDevice, ToHost};
-enum BufferType {ReadOnly, WriteOnly, ReadWrite};
-enum ExecMode {SW_EMU, HW_EMU, HW};
-
-ExecMode check_execution_mode();
-
 namespace xhl{
+    // config words
+    enum MigrateDirection {ToDevice, ToHost};
+    enum BufferType {ReadOnly, WriteOnly, ReadWrite};
+    enum ExecMode {SW_EMU, HW_EMU, HW};
+
+    /**
+     * @brief check the execution mode (SW, HW_EMU, HW)
+     * @return return xhl::enmu type, including SW_EMU, HW_EMU, HW
+     */
+    ExecMode check_execution_mode();
+
     struct BoardIdentifier {
         std::string name;
         std::string xsa;
@@ -64,16 +68,44 @@ namespace xhl{
             Device(cl::Device cl_device) {
                 _device = cl_device;
             }
+
+            /**
+             * @brief create buffer depending on the buffertype
+             *
+             * @param name is the argument name
+             * @param data_ptr is the pointer to the data in buffer
+             * @param size in bytes is the data size in bytes
+             * @param type is the BufferType: ReadOnly, WriteOnly, and ReadWrite
+             * @param memory_channel_name should be a int from an array in xhl::runtime::board::alveo::u280 namespace from 0-31
+             * 
+             * @exception fail to create buffer
+             * @exception wrong type buffer
+             */
             void create_buffer(
                 std::string name, void *data_ptr, size_t size_in_bytes, BufferType type,
                 const int memory_channel_id
             );
+
+            /**
+             * @brief use bitstream to program the device
+             *
+             * @param the path of bitstream/xclbin
+             * 
+             * @exception fail to load bitstream
+             */
             void program_device(
-                const cl::Device &device_name, 
                 const std::string &xclbin_path
             );
         };
         
+        /**
+         * @brief find the user needed device
+         *
+         * @param identifier is hardly defined in xhl::runtime::board::alveo::u280 namespace
+         * @return the array of xhl::runtime::Device class instances
+         * 
+         * @exception Failed to find Device
+         */
         std::vector<Device> find_devices(const xhl::BoardIdentifier&);
     };
 
@@ -84,6 +116,16 @@ namespace xhl{
             const struct KernelSignature ks;
         virtual void run() = 0;
 
+        /**
+         * @brief set argument in clkernel
+         *
+         * @param argument name
+         * @param the computerUnit we create
+         * @param argument content in any type corresponding to the name
+         * 
+         * @exception Failed to set argument
+         * @exception Failed to match any argument name in map
+         */
         template<typename T>
         void set_arg(
             const std::string& arg_name, 
@@ -97,14 +139,39 @@ namespace xhl{
             xhl::runtime::Device *cu_device;
             xhl::Kernel *cu_kernel;
             cl::Kernel clkernel;
-        ComputeUnit() {
+
+        ComputeUnit() =delete; // don't provide default constructor 
+
+        /**
+         * @brief constructor instantiate the xhl::kernel into the ComputeUnit
+         *
+         * @param Kernel class under xhl namespace
+         */
+        ComputeUnit(xhl::Kernel *k) { // add xhl::kernel and assign it to computeunit. 
             cu_device = nullptr;
             cu_kernel = nullptr;
+
+            this->cu_kernel = k;
         }
-        void bind (xhl::Kernel *k, xhl::runtime::Device *d);
+
+        /**
+         * @brief bind the device with the computeunit and create the cl::Kernel, which is the computeunit in our define
+         *
+         * @param Device class under xhl::runtime namespace
+         * 
+         * @exception Failed to create CL Kernel
+         */
+        void bind (xhl::runtime::Device *d);
+
+        /**
+         * @brief launch, start to run the computeunit
+         *
+         * @param param pack, can send any number of param in any type
+         */
         template <typename... Ts>
         void launch (Ts ... ts);
     };
+
 };
 
 #endif //XOCL_HOSTLIB_H

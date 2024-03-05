@@ -6,39 +6,24 @@
 #include "xocl-host-lib.hpp"
 #include <unordered_map>
 
-/**
-     * @brief check the execution mode (SW, HW_EMU, HW)
-     */
-ExecMode check_execution_mode() {
-    if(xcl::is_emulation()) {
-        if(xcl::is_hw_emulation())
-            return ExecMode::HW_EMU;
-        return ExecMode::SW_EMU;
-    }
-    return ExecMode::HW;
-}
-
 namespace xhl {
+    ExecMode check_execution_mode() {
+        if(xcl::is_emulation()) {
+            if(xcl::is_hw_emulation())
+                return ExecMode::HW_EMU;
+            return ExecMode::SW_EMU;
+        }
+        return ExecMode::HW;
+    }
+
     // runtime namespace, only happens on run time
     namespace runtime {
-            /**
-             * @brief create buffer depending on the buffertype
-             *
-             * @param name is the argument name
-             * @param data_ptr is the pointer from the data in buffer
-             * @param size in bytes is the data size in bytes
-             * @param type is the BufferType: ReadOnly, WriteOnly, and ReadWrite
-             * @param memory_channel_id is the memory channel
-             * 
-             * @exception fail to create buffer
-             * @exception wrong type buffer
-             */
             void Device::create_buffer(
                 std::string name, void *data_ptr, size_t size_in_bytes, BufferType type,
-                const int memory_channel_id
+                const int memory_channel_name 
             ) {
                 cl_mem_ext_ptr_t eptr;
-                eptr.flags = memory_channel_id;
+                eptr.flags = memory_channel_name;
                 eptr.obj = data_ptr;
                 eptr.param = 0;
                 this->_ext_ptrs[name] = eptr;
@@ -84,16 +69,8 @@ namespace xhl {
                     break;
                 }
             }
-            /**
-             * @brief use bitstream to program the device
-             *
-             * @param the cl device name
-             * @param the path of bitstream/xclbin
-             * 
-             * @exception fail to load bitstream
-             */
+
             void Device::program_device(
-                const cl::Device &device_name, 
                 const std::string &xclbin_path
             ) {
                 // load bitstream into FPGA
@@ -112,13 +89,6 @@ namespace xhl {
             }
         // end of Device function
 
-        /**
-         * @brief find the user needed device
-         *
-         * @param identifier is a struct in 'BoardIdentifier', has name and xsa
-         * 
-         * @exception Failed to find Device
-         */
         std::vector<Device> find_devices(const xhl::BoardIdentifier &identifier) {
             // find device, push found device into our devices
             std::vector<Device> devices;
@@ -141,16 +111,7 @@ namespace xhl {
         }
     };
 
-    /**
-     * @brief bind the kernel and device into the computeunit and create the cl::Kernel, which is the computeunit in our define
-     *
-     * @param Our Kernel class
-     * @param Out Device class
-     * 
-     * @exception Failed to create CL Kernel
-     */
-    void ComputeUnit::bind (xhl::Kernel *k, xhl::runtime::Device *d) {
-        this->cu_kernel = k;
+    void ComputeUnit::bind (xhl::runtime::Device *d) {
         this->cu_device = d;
         // create CL kernel in compute unit
         cl_int errflag = 0;
@@ -162,27 +123,12 @@ namespace xhl {
         }
     }
 
-    /**
-     * @brief launch, start to run the computeunit
-     *
-     * @param param pack, can send any number of param in any type
-     */
     template <typename... Ts>
     void ComputeUnit::launch (Ts ... ts) {
         this->cu_kernel->run(this, ts...); 
         this->cu_device->command_q.enqueueTask(this->clkernel);
     }
 
-    /**
-     * @brief set argument in clkernel
-     *
-     * @param argument name
-     * @param the computerUnit we create
-     * @param argument content in any type corresponding to the name
-     * 
-     * @exception Failed to set argument
-     * @exception Failed to match any argument name in map
-     */
     template<typename T>
     void Kernel::set_arg(
         const std::string& arg_name, 
