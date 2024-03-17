@@ -17,12 +17,12 @@ CXXFLAGS += -fPIC
 CXXFLAGS += -fmessage-length=0
 LDFLAGS += -lrt -lstdc++
 
-build: libxocl-host.so
+build: libxocl.so
 
-libxocl-host.so: xocl-host-lib.o
-	$(CXX) -shared -o libxocl-host.so xocl-host-lib.o
+libxocl.so: xocl.o
+	$(CXX) -shared -o libxocl.so xocl-host-lib.o
 
-xocl-host-lib.o: xocl-host-lib.cpp xocl-host-lib.hpp
+xocl.o: xocl-host-lib.cpp xocl-host-lib.hpp
 	$(CXX) $(CXXFLAGS) -c xocl-host-lib.cpp -o xocl-host-lib.o
 
 clean:

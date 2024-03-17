@@ -65,8 +65,13 @@ namespace xhl{
 
             // constructor
             // used in find device, to construct Device with cl::Device
-            Device(cl::Device cl_device) {
+            // Device(cl::Device cl_device) {
+            //     _device = cl_device;
+            // }
+
+            void bind_Device(cl::Device cl_device) {
                 _device = cl_device;
+                std::cout << cl_device.getInfo<CL_DEVICE_NAME>() << std::endl;
             }
 
             /**
@@ -96,6 +101,7 @@ namespace xhl{
             void program_device(
                 const std::string &xclbin_path
             );
+
         };
         
         /**
@@ -113,7 +119,7 @@ namespace xhl{
     // Kernel, the declaim of compute units
     class Kernel {
         public:
-            const struct KernelSignature ks;
+            struct KernelSignature ks;
         virtual void run() = 0;
 
         /**
@@ -140,7 +146,7 @@ namespace xhl{
             xhl::Kernel *cu_kernel;
             cl::Kernel clkernel;
 
-        ComputeUnit() =delete; // don't provide default constructor 
+        ComputeUnit() = delete; // don't provide default constructor 
 
         /**
          * @brief constructor instantiate the xhl::kernel into the ComputeUnit

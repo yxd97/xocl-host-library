@@ -99,7 +99,8 @@ namespace xhl {
             auto cl_devices = xcl::get_xil_devices();
             for (size_t i = 0; i < cl_devices.size(); i++) {
                 if (cl_devices[i].getInfo<CL_DEVICE_NAME>() == target_name) {
-                    Device tmp_device(cl_devices[i]); // use special constructor function
+                    Device tmp_device;
+                    (tmp_device).bind_Device(cl_devices[i]); // use function
                     devices.push_back(tmp_device);
                     found_device = true;
                 }
