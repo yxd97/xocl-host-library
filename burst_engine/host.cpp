@@ -7,7 +7,7 @@
 
 
 #include "xcl2/xcl2.hpp"
-#include "xocl-host-library/xocl-host-lib.hpp"
+#include "xocl-host-lib.hpp"
 
 using namespace xhl;
 
@@ -104,69 +104,70 @@ int main(int argc, char** argv) {
     }
 
     // set the environment variable
-    auto target = check_execution_mode();
-    if (target == SW_EMU) {
-        setenv("XCL_EMULATION_MODE", "sw_emu", true);
-    } else if (target == HW_EMU) {
-        setenv("XCL_EMULATION_MODE", "hw_emu", true);
+    // auto target = check_execution_mode();
+    // if (target == SW_EMU) {
+    //     setenv("XCL_EMULATION_MODE", "sw_emu", true);
+    // } else if (target == HW_EMU) {
+    //     setenv("XCL_EMULATION_MODE", "hw_emu", true);
+    // }
+    // auto devices = xhl::runtime::find_devices(runtime::boards::alveo::u280::identifier);
+    // runtime::Device device = devices[0];
+
+    // xcl::get_xil_devices() returns a list of Xilinx devices
+    auto devices = xcl::get_xil_devices();
+    // find the device we want to program, here U280 is used as an example
+    // board name is the string passed to Vitis when building the bitstream, used for loading emulation model
+    const std::string u280_board_name = "xilinx_u280_gen3x16_xdma_1_202211_1";
+    // Xilinx Shell Archive (XSA) is the identifier of the real board, used for running actual bitstream
+    const std::string u280_board_xsa = "xilinx_u280_gen3x16_xdma_base_1";
+    // xcl::is_emulation() returns true if we are running in software or hardware emulation
+    std::string target_name = xcl::is_emulation() ? u280_board_name : u280_board_xsa;
+    bool found_device = false;
+    int dev_id = 0;
+    for (size_t i = 0; i < devices.size(); i++) {
+        if (devices[i].getInfo<CL_DEVICE_NAME>() == target_name) {
+            found_device = true;
+            dev_id = i;
+            break;
+        }
     }
-    auto devices = xhl::runtime::find_devices(runtime::boards::alveo::u280::identifier);
-    runtime::Device device = devices[0];
-    // // xcl::get_xil_devices() returns a list of Xilinx devices
-    // auto devices = xcl::get_xil_devices();
-    // // find the device we want to program, here U280 is used as an example
-    // // board name is the string passed to Vitis when building the bitstream, used for loading emulation model
-    // const std::string u280_board_name = "xilinx_u280_gen3x16_xdma_1_202211_1";
-    // // Xilinx Shell Archive (XSA) is the identifier of the real board, used for running actual bitstream
-    // const std::string u280_board_xsa = "xilinx_u280_gen3x16_xdma_base_1";
-    // // xcl::is_emulation() returns true if we are running in software or hardware emulation
-    // std::string target_name = xcl::is_emulation() ? u280_board_name : u280_board_xsa;
-    // bool found_device = false;
-    // int dev_id = 0;
-    // for (size_t i = 0; i < devices.size(); i++) {
-    //     if (devices[i].getInfo<CL_DEVICE_NAME>() == target_name) {
-    //         found_device = true;
-    //         dev_id = i;
-    //         break;
-    //     }
-    // }
-    // if (!found_device) {
-    //     std::cerr << "[ERROR]: Failed to find " << target_name << ", exit!" << std::endl;
-    //     exit(-1);
-    // }
+    if (!found_device) {
+        std::cerr << "[ERROR]: Failed to find " << target_name << ", exit!" << std::endl;
+        exit(-1);
+    }
 
-    device.program_device(xclbin_path);
-    // // First, we need to create an OpenCL context for the device we want to program.
-    // cl::Context ctx = cl::Context(devices[dev_id], NULL, NULL, NULL);
-    // // Then we read the bitstream file into a array of bytes.
-    // const std::string bitstream_file_name = argv[1];
-    // std::vector<unsigned char> file_buf = xcl::read_binary_file(bitstream_file_name);
-    // // Create a program object from the raw bytes.
-    // cl::Program::Binaries binary{{file_buf.data(), file_buf.size()}};
-    // // Program the device with the program object.
-    // cl_int err = 0;
-    // cl::Program program(ctx, {devices[dev_id]}, binary, NULL, &err);
-    // // check if the programming is successful
-    // if (err != CL_SUCCESS) {
-    //     std::cerr << "[ERROR]: Failed to program device with xclbin file!" << std::endl;
-    //     std::cerr << "         Error code: " << err << std::endl;
-    //     exit(-1);
-    // }
+    // device.program_device(argv[1]);
+    // First, we need to create an OpenCL context for the device we want to program.
+    cl::Context ctx = cl::Context(devices[dev_id], NULL, NULL, NULL);
+    // Then we read the bitstream file into a array of bytes.
+    const std::string bitstream_file_name = argv[1];
+    std::vector<unsigned char> file_buf = xcl::read_binary_file(bitstream_file_name);
+    // Create a program object from the raw bytes.
+    cl::Program::Binaries binary{{file_buf.data(), file_buf.size()}};
+    // Program the device with the program object.
+    cl_int err = 0;
+    cl::Program program(ctx, {devices[dev_id]}, binary, NULL, &err);
+    // check if the programming is successful
+    if (err != CL_SUCCESS) {
+        std::cerr << "[ERROR]: Failed to program device with xclbin file!" << std::endl;
+        std::cerr << "         Error code: " << err << std::endl;
+        exit(-1);
+    }
 
-    // // Create a command queue for the device.
-    // // All data movements and kernel executions are issued through the command queue.
-    // err = 0;
-    // cl::CommandQueue cq(
-    //     ctx, devices[dev_id],
-    //     CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE,
-    //     &err
-    // );
+    // Create a command queue for the device.
+    // All data movements and kernel executions are issued through the command queue.
+    err = 0;
+    cl::CommandQueue cq(
+        ctx, devices[dev_id],
+        CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE,
+        &err
+    );
 
-    std::vector<uint8_t> data_ddr0(DATA_SIZE_IN_BYTES);
-    std::vector<uint8_t> data_ddr1(DATA_SIZE_IN_BYTES);
+    // std::vector<uint8_t> data_ddr0(DATA_SIZE_IN_BYTES);
+    // std::vector<uint8_t> data_ddr1(DATA_SIZE_IN_BYTES);
 
-    ComputeUnit cu(burst_engine);
-    cu.bind(&device);
+    // ComputeUnit cu(burst_engine);
+    // cu.bind(&device);
 
     // Create a kernel object for the kernel we want to run.
     const std::string kernel_name = "burst_engine";

@@ -3,6 +3,7 @@ ECHO = @echo
 # Points to top directory of Git repository
 COMMON_REPO = ..
 ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
+XOCL_HOST_LIB := $(ABS_COMMON_REPO)
 
 TARGET := sw_emu#hw_emu
 FREQ := 450
@@ -18,8 +19,8 @@ IDIR += -I$(ABS_COMMON_REPO)/
 # IDIR += -L$(SO_PATH)
 # IDIR += -I$(SO_PATH)
 # IDIR += -I$(ABS_COMMON_REPO)/
-IDIR += -I$(ABS_COMMON_REPO)/xocl-host-library/
-IDIR += -I$(TEST_PATH) 
+IDIR += -I$(ABS_COMMON_REPO)/
+IDIR += -I$(TEST_PATH)
 
 CXXFLAGS += -I$(CNPY_INCLUDE)
 
@@ -30,16 +31,15 @@ CXX = g++
 HLS = vitis_hls
 
 #Include Libraries
-include $(ABS_COMMON_REPO)/xocl-host-library/opencl/opencl.mk
-include $(ABS_COMMON_REPO)/xocl-host-library/xcl2/xcl2.mk
-include $(ABS_COMMON_REPO)/burst_engine/deps.mk
+include $(ABS_COMMON_REPO)/opencl/opencl.mk
+include $(ABS_COMMON_REPO)/xcl2/xcl2.mk
 
 CXXFLAGS += $(xcl2_CXXFLAGS)
 LDFLAGS += $(xcl2_LDFLAGS)
-HOST_SRCS += $(ABS_COMMON_REPO)/xocl-host-library$(xcl2_SRCS)
+HOST_SRCS += $(xcl2_SRCS)
 
-HOST_SRCS += $(ABS_COMMON_REPO)/xocl-host-library/$(XHL_LIB_SRCS)
-HOST_HDRS += $(ABS_COMMON_REPO)/xocl-host-library/$(XHL_LIB_HDRS)
+HOST_SRCS += $(ABS_COMMON_REPO)/xocl-host-lib.cpp
+HOST_HDRS += $(ABS_COMMON_REPO)/xocl-host-lib.hpp
 
 CXXFLAGS += $(XHL_CXXFLAGS)
 CXXFLAGS += $(opencl_CXXFLAGS)
