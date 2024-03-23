@@ -10,6 +10,9 @@ if [ $HOSTNAME = zhang-capra-xcel.ece.cornell.edu ]; then
     export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
     export LD_LIBRARY_PATH=/work/zhang-capra/common/lib:$LD_LIBRARY_PATH
     export CPATH=/usr/include/x86_64-linux-gnu:$CPATH
+    export CNPY_INCLUDE=/home/zs343/zs343/build/cnpy
+    export CNPY_LIB=/home/zs343/zs343/build/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CNPY_LIB
 else
     source scl_source enable devtoolset-8
     source /opt/xilinx/2022.1/Vitis/2022.1/settings64.sh > /dev/null
@@ -17,6 +20,8 @@ else
     export HLS_INCLUDE=/opt/xilinx/2022.1/Vitis_HLS/2022.1/include
     export LD_LIBRARY_PATH=/opt/xilinx/2022.1/Vitis/2022.1/lib/lnx64.o:$LD_LIBRARY_PATH
     export LD_LIBRARY_PATH=/opt/xilinx/2022.1/Vitis/2022.1/lib/lnx64.o/Default:$LD_LIBRARY_PATH
-    export LD_LIBRARY_PATH="/work/shared/users/meng/zs343/vitis_practice/hardware/vvadd/xocl-host-library:$LD_LIBRARY_PATH"
+    export CNPY_INCLUDE=/home/zs343/zs343/build/cnpy
+    export CNPY_LIB=/home/zs343/zs343/build/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CNPY_LIB
 fi
 echo Vitis-2022.1 setup finished

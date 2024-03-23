@@ -18,75 +18,49 @@ namespace xhl {
 
     // runtime namespace, only happens on run time
     namespace runtime {
-            void Device::create_buffer(
-                std::string name, void *data_ptr, size_t size_in_bytes, BufferType type,
-                const int memory_channel_name 
-            ) {
-                cl_mem_ext_ptr_t eptr;
-                eptr.flags = memory_channel_name;
-                eptr.obj = data_ptr;
-                eptr.param = 0;
-                this->_ext_ptrs[name] = eptr;
-                switch (type) {
-                    case ReadOnly:
-                        this->buffers[name] = cl::Buffer(
-                            this->_context,
-                            CL_MEM_READ_ONLY | CL_MEM_EXT_PTR_XILINX | CL_MEM_USE_HOST_PTR,
-                            size_in_bytes,
-                            &(this->_ext_ptrs[name]),
-                            &(this->_errflag)
-                        );
-                        if (this->_errflag) {
-                            throw std::runtime_error("[ERROR]: Create buffer error, exit!\n");
-                        }
-                    break;
-                    case WriteOnly:
-                        this->buffers[name] = cl::Buffer(
-                            this->_context,
-                            CL_MEM_WRITE_ONLY | CL_MEM_EXT_PTR_XILINX | CL_MEM_USE_HOST_PTR,
-                            size_in_bytes,
-                            &(this->_ext_ptrs[name]),
-                            &(this->_errflag)
-                        );
-                        if (this->_errflag) {
-                            throw std::runtime_error("[ERROR]: Create buffer error, exit!\n");
-                        }
-                    break;
-                    case ReadWrite:
-                        this->buffers[name] = cl::Buffer(
-                            this->_context,
-                            CL_MEM_READ_WRITE | CL_MEM_EXT_PTR_XILINX | CL_MEM_USE_HOST_PTR,
-                            size_in_bytes,
-                            &(this->_ext_ptrs[name]),
-                            &(this->_errflag)
-                        );
-                        if (this->_errflag) {
-                            throw std::runtime_error("[ERROR]: Create buffer error, exit!\n");
-                        }
-                    break;
-                    default:
-                        std::cout << "[ERROR]: Unsupported buffer type!"<< std::endl;
-                    break;
-                }
+        bool Device::contains_buffer(cl::Buffer& buf) const {
+            cl_context bufCtx;
+            cl_int err = buf.getInfo(CL_MEM_CONTEXT, &bufCtx);
+            if (err != CL_SUCCESS) throw std::runtime_error("Unable to obtain buffer context");
+            return bufCtx == this->_context();
+        }
+        bool Device::contains_buffer(cl::Buffer& buf) {
+            cl_context bufCtx;
+            cl_int err = buf.getInfo(CL_MEM_CONTEXT, &bufCtx);
+            if (err != CL_SUCCESS) throw std::runtime_error("Unable to obtain buffer context");
+            return bufCtx == this->_context();
+        }
+
+        void Device::program_device(
+            const std::string &xclbin_path
+        ) {
+            // load bitstream into FPGA
+            cl::Context cxt = cl::Context(this->_device, NULL, NULL, NULL);
+            this->_context = cxt;
+
+            const std::string bitstream_file_name = xclbin_path;
+            std::vector<unsigned char> file_buf = xcl::read_binary_file(bitstream_file_name);
+            cl::Program::Binaries binary{{file_buf.data(), file_buf.size()}};
+
+            //cl_int err = 0;
+            cl::Program program(cxt, {this->_device}, binary, NULL, &(this->_errflag));
+            if (this->_errflag != CL_SUCCESS) {
+                throw std::runtime_error("[ERROR]: Load bitstream failed, exit!\n");
             }
+            this->_program = program;
 
-            void Device::program_device(
-                const std::string &xclbin_path
-            ) {
-                // load bitstream into FPGA
-                cl::Context cxt = cl::Context(this->_device, NULL, NULL, NULL);
-                this->_context = cxt;
-
-                const std::string bitstream_file_name = xclbin_path;
-                std::vector<unsigned char> file_buf = xcl::read_binary_file(bitstream_file_name);
-                cl::Program::Binaries binary{{file_buf.data(), file_buf.size()}};
-
-                cl_int err = 0;
-                cl::Program program(cxt, {this->_device}, binary, NULL, &err);
-                if (err != CL_SUCCESS) {
-                    throw std::runtime_error("[ERROR]: Load bitstream failed, exit!\n");
-                }
+            cl::CommandQueue cq(cxt, this->_device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE, &(this->_errflag));
+            if (this->_errflag != CL_SUCCESS) {
+                throw std::runtime_error("[ERROR]: Failed to create command queue, exit!\n");
             }
+            this->command_q = cq;
+        }
+
+        std::ostream& operator<<(std::ostream& stream, const Device& device)
+        {
+            return stream << device._device.getInfo<CL_DEVICE_NAME>();
+        }
+
         // end of Device function
 
         std::vector<Device> find_devices(const xhl::BoardIdentifier &identifier) {
@@ -117,23 +91,16 @@ namespace xhl {
         // create CL kernel in compute unit
         cl_int errflag = 0;
         this->clkernel = cl::Kernel(
-            this->cu_device->_program, this->cu_kernel->ks.name.c_str(), &errflag
+            this->cu_device->_program, this->signature.name.c_str(), &errflag
         );
-        if (errflag) {
-            throw std::runtime_error("[ERROR]: Failed to create CL Kernel, exit!\n");
+        if (errflag != CL_SUCCESS) {
+            throw std::runtime_error("[ERROR]: Failed to create CL Kernel, exit! (code:" + std::to_string(errflag) + ")");
         }
     }
 
-    template <typename... Ts>
-    void ComputeUnit::launch (Ts ... ts) {
-        this->cu_kernel->run(this, ts...); 
-        this->cu_device->command_q.enqueueTask(this->clkernel);
-    }
-
     template<typename T>
-    void Kernel::set_arg(
-        const std::string& arg_name, 
-        const xhl::ComputeUnit *cu,
+    void ComputeUnit::set_arg(
+        const std::string& arg_name,
         const T&arg_val
     ) {
         cl_int errflag = 0;
@@ -142,20 +109,17 @@ namespace xhl {
         // argmap maps from argument name to argument type
         std::map<std::string, std::string>::iterator it;
         int i = 0;
-        for (it = cu->cu_kernel->ks.argmap.begin(); it != cu->cu_kernel->ks.argmap.end() ; ++it) {
+        for (it = this->signature.argmap.begin(); it != this->signature.argmap.end() ; ++it) {
             if (it -> first == arg_name) {
-                errflag = cu->clkernel.setArg(i, arg_val);
-                throw std::runtime_error("[ERROR]: Failed to setArg in CL Kernel, exit!\n");
-                break;
+                set_arg(i, arg_val);
             }
             i++;
         }
         // check if match
-        if (i == cu->cu_kernel->ks.argmap.size()) {
+        if (i == this->signature.argmap.size()) {
             throw std::runtime_error("[ERROR]: input argument name doesn't match with the argument map(map from argument name to argument type), exit!\n");
         }
     }
-
 };
 
 #endif //XOCL_HOSTLIB
