@@ -9,6 +9,12 @@
 #include "xcl2.hpp"
 
 namespace xhl {
+class IBuffer;
+class Device;
+void nb_sync_data_htod(xhl::Device* d, xhl::IBuffer*);
+void nb_sync_data_dtoh(xhl::Device* d, xhl::IBuffer*);
+void sync_data_htod(xhl::Device* d, xhl::IBuffer*);
+void sync_data_dtoh(xhl::Device* d, xhl::IBuffer*);
 
 /**
  * @brief 4KB aligned vector.

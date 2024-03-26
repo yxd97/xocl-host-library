@@ -18,7 +18,7 @@ class ComputeUnit {
 private:
 
 template<typename T>
-void __set_arg(
+void __set_arg_impl(
     const int arg_index,
     const T&arg_val
 ) {
@@ -40,15 +40,15 @@ void __set_arg(
 
 // reference: https://stackoverflow.com/a/71148253
 template <typename ...Ts, size_t ...Is>
-void __invoke_at_impl(
+void __pick_arg_set(
     std::tuple<Ts...>& tpl, std::index_sequence<Is...>, size_t idx
 ) {
-    ((void)(Is == idx && (this->__set_arg(idx, std::get<Is>(tpl)), true)), ...);
+    ((void)(Is == idx && (this->__set_arg_impl(idx, std::get<Is>(tpl)), true)), ...);
 }
 
 template <typename ...Ts>
-void __invoke_at(std::tuple<Ts...>& tpl, size_t idx) {
-    __invoke_at_impl(tpl, std::make_index_sequence<sizeof...(Ts)>{}, idx);
+void __set_arg(std::tuple<Ts...>& tpl, size_t idx) {
+    __pick_arg_set(tpl, std::make_index_sequence<sizeof...(Ts)>{}, idx);
 }
 
 public:
@@ -77,42 +77,6 @@ ComputeUnit(struct xhl::KernelSignature ks) : cu_device(nullptr) { // add xhl::k
 void bind (xhl::Device *d);
 
 /**
- * @brief set argument in clkernel
- *
- * @param argument name
- * @param argument content in any type corresponding to the name
- *
- * @exception Failed to set argument
- * @exception Failed to match any argument name in map
- */
-template<typename T>
-void set_arg(
-    const std::string& arg_name,
-    const T&arg_val
-) {
-    cl_int errflag = 0;
-
-    // use iterator to find the match between the input argument name
-    // and the argument map in kernel signature
-    // argmap maps from argument name to argument type
-    std::map<std::string, std::string>::iterator it;
-    int i = 0;
-    for (it = this->signature.argmap.begin(); it != this->signature.argmap.end() ; ++it) {
-        if (it -> first == arg_name) {
-            set_arg(i, arg_val);
-        }
-        i++;
-    }
-    // check if match
-    if (i == this->signature.argmap.size()) {
-        throw std::runtime_error(
-            "[ERROR]: input argument name doesn't match with the argument map"
-            " (map from argument name to argument type), exit!\n"
-        );
-    }
-}
-
-/**
  * @brief launch, start to run the computeunit
  *
  * @param ... arguments of the kernel signature
@@ -128,8 +92,8 @@ void launch (Ts ... ts) {
 
     auto args = std::make_tuple(ts...);
     auto ite = this->signature.argmap.begin();
-    for (int i = 0; i < this->signature.argmap.size(); i++, ite++) {
-        this->__invoke_at(args, i);
+    for (size_t i = 0; i < this->signature.argmap.size(); i++, ite++) {
+        this->__set_arg(args, i);
     }
     this->cu_device->command_q.enqueueTask(this->clkernel);
 }

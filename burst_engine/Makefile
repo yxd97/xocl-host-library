@@ -66,7 +66,7 @@ CP = cp -rf
 RMDIR = rm -rf
 
 .PHONY: all clean cleanall emconfig
-all: $(EXECUTABLE) emconfig
+all: $(EXECUTABLE) $(BINARY_CONTAINERS) emconfig
 
 .PHONY: exe
 exe: $(EXECUTABLE)
@@ -91,8 +91,8 @@ $(TEMP_DIR)/burst_engine.xo: burst_engine.cpp
 	mkdir -p $(TEMP_DIR)
 	$(VPP) $(CLFLAGS) --temp_dir $(TEMP_DIR) -c -k burst_engine -I'$(<D)'  -o'$@' burst_engine.cpp
 
-# $(BINARY_CONTAINERS): $(BINARY_CONTAINER_kernel_OBJS)
-# 	$(VPP) $(CLFLAGS) --temp_dir $(TEMP_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
+$(BINARY_CONTAINERS): $(BINARY_CONTAINER_kernel_OBJS)
+	$(VPP) $(CLFLAGS) --temp_dir $(TEMP_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): check-xrt $(HOST_SRCS) $(HOST_HDRS)
@@ -103,14 +103,12 @@ $(EMCONFIG_DIR)/emconfig.json:
 	emconfigutil --platform $(DEVICE) --od $(EMCONFIG_DIR)
 
 check: all
+ifeq ($(TARGET),$(filter $(TARGET),sw_emu hw_emu))
 	$(CP) $(EMCONFIG_DIR)/emconfig.json .
 	XCL_EMULATION_MODE=$(TARGET) ./$(EXECUTABLE) $(BINARY_CONTAINERS)
-# ifeq ($(TARGET),$(filter $(TARGET),sw_emu hw_emu))
-# 	$(CP) $(EMCONFIG_DIR)/emconfig.json .
-# 	XCL_EMULATION_MODE=$(TARGET) ./$(EXECUTABLE) $(BINARY_CONTAINERS)
-# else
-# 	./$(EXECUTABLE) $(BUILD_DIR)/burst_engine.xclbin
-# endif
+else
+	./$(EXECUTABLE) $(BUILD_DIR)/burst_engine.xclbin
+endif
 
 # Cleaning stuff
 clean:

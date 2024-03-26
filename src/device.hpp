@@ -24,7 +24,6 @@ private:
 cl::Device _device;
 std::unordered_map<std::string, cl_mem_ext_ptr_t> _ext_ptrs;
 cl::Context _context;
-cl_int _errflag;
 
 public:
 
@@ -35,6 +34,7 @@ public:
  */
 void bind_device(cl::Device cl_device);
 
+cl_int _errflag;
 std::unordered_map<std::string, cl::Buffer> buffers;
 cl::CommandQueue command_q;
 cl::Program _program; // used to create kernel
@@ -52,12 +52,41 @@ cl::Program _program; // used to create kernel
  */
 template <typename T>
 Buffer<T> create_buffer(
-    std::string name, size_t count, BufferType type,
+    std::string name, size_t size, BufferType type,
     const int memory_channel_name
 ) {
-    Buffer<T> buf = Buffer<T>(this, name, count, type, memory_channel_name);
-    this->buffers[name] = buf._buffer;
-    return buf;
+    Buffer<T> buffer = Buffer<T>(size);
+    buffer._eptr.flags = memory_channel_name;
+    buffer._eptr.obj = buffer.data();
+    buffer._eptr.param = 0;
+    cl_mem_flags buffer_type_flag;
+    switch (type) {
+        case ReadOnly:
+            buffer_type_flag = CL_MEM_READ_ONLY;
+        break;
+        case WriteOnly:
+            buffer_type_flag = CL_MEM_WRITE_ONLY;
+        break;
+        case ReadWrite:
+            buffer_type_flag = CL_MEM_READ_WRITE;
+        break;
+        default:
+            std::cout << "[ERROR]: Unsupported buffer type!"<< std::endl;
+        break;
+    }
+    cl::Buffer buf = cl::Buffer(
+        this->_context,
+        buffer_type_flag | CL_MEM_EXT_PTR_XILINX | CL_MEM_USE_HOST_PTR,
+        sizeof(T) * size,
+        &(buffer._eptr),
+        &(this->_errflag)
+    );
+    if (this->_errflag) {
+        throw std::runtime_error("[ERROR]: Create buffer error, exit!\n");
+    }
+    this->buffers[name] = buf;
+    buffer.set_clbuffer(buf);
+    return buffer;
 }
 
 /**
