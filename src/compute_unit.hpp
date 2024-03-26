@@ -10,7 +10,6 @@
 
 #include "xcl2.hpp"
 #include "device.hpp"
-#include "buffer.hpp"
 #include "xocl-host-lib.hpp"
 
 namespace xhl {
@@ -22,14 +21,7 @@ void __set_arg_impl(
     const int arg_index,
     const T&arg_val
 ) {
-    cl_int errflag = 0;
-    if constexpr (std::is_base_of_v<IBuffer, T>) {
-        const IBuffer* ptr = &arg_val;
-        errflag = this->clkernel.setArg(arg_index, ptr->buffer());
-    }
-    else {
-        errflag = this->clkernel.setArg(arg_index, arg_val);
-    }
+    cl_int errflag = this->clkernel.setArg(arg_index, arg_val);
     if (errflag != CL_SUCCESS) {
         throw std::runtime_error(
             "[ERROR]: Failed to setArg in CL Kernel, exit! (code:"

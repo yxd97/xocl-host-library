@@ -7,7 +7,6 @@
 
 #include "xocl-host-lib.hpp"
 #include "device.hpp"
-#include "buffer.hpp"
 #include "compute_unit.hpp"
 
 const uint64_t DATA_SIZE_IN_BYTES = 1024 * 1024 * 1024; // must be multiples of 64
@@ -24,10 +23,8 @@ int main(int argc, char* argv[]) {
     );
     xhl::Device device = devices[0];
 
-    std::cout << "a" << std::flush;
     device.program_device(argv[1]);
 
-    std::cout << "a" << std::flush;
     xhl::KernelSignature burst_engine = {
         "burst_engine", {
             {"location" ,"ap_int<512>*"},
@@ -36,26 +33,22 @@ int main(int argc, char* argv[]) {
         }
     };
 
-    std::cout << "a" << std::flush;
     xhl::ComputeUnit burst_engine_cu(burst_engine);
     burst_engine_cu.bind(&device);
 
-    std::cout << "a" << std::flush;
-    xhl::Buffer<uint8_t> buf = device.create_buffer<uint8_t>(
-        "location", DATA_SIZE_IN_BYTES,
+    std::vector<uint8_t> data(DATA_SIZE_IN_BYTES);
+
+    device.create_buffer(
+        "location", DATA_SIZE_IN_BYTES, data.data(),
         xhl::BufferType::ReadWrite, xhl::boards::alveo::u280::DDR[0]
     );
 
-    std::cout << "a" << std::flush;
-    std::generate(buf.begin(), buf.end(), [n = 0]() mutable { return n++; });
-    xhl::sync_data_htod(&device, &buf);
+    xhl::sync_data_htod(&device, "location");
 
-    std::cout << "a" << std::flush;
     auto start = std::chrono::high_resolution_clock::now();
-    burst_engine_cu.launch(buf, DATA_SIZE_IN_BYTES, 1);
+    burst_engine_cu.launch(device.get_buffer("location"), DATA_SIZE_IN_BYTES, 1);
     device.finish_all_tasks();
 
-    std::cout << "a" << std::flush;
     auto end = std::chrono::high_resolution_clock::now();
     double duration_ms = std::chrono::duration<double, std::milli>(end - start).count();
 

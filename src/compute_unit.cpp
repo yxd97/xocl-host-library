@@ -7,7 +7,7 @@ void ComputeUnit::bind (xhl::Device *d) {
     // create CL kernel in compute unit
     cl_int errflag = 0;
     this->clkernel = cl::Kernel(
-        this->cu_device->_program, this->signature.name.c_str(), &errflag
+        this->cu_device->program, this->signature.name.c_str(), &errflag
     );
     if (errflag != CL_SUCCESS) {
         throw std::runtime_error(

@@ -2,47 +2,87 @@
 
 namespace xhl {
 
+void Device::create_buffer(
+    std::string name, size_t size, void* data_ptr, BufferType type,
+    const int memory_channel_name
+) {
+    if (this->_buffers.find(name) != this->_buffers.end()) {
+        throw std::runtime_error("Buffer name already used");
+    }
+    cl_mem_flags buffer_type_flag;
+    switch (type) {
+        case ReadOnly:
+            buffer_type_flag = CL_MEM_READ_ONLY;
+        break;
+        case WriteOnly:
+            buffer_type_flag = CL_MEM_WRITE_ONLY;
+        break;
+        case ReadWrite:
+            buffer_type_flag = CL_MEM_READ_WRITE;
+        break;
+        default:
+            throw std::runtime_error("Invalid buffer type");
+        break;
+    }
+    this->_ext_ptrs[name].flags = memory_channel_name;
+    this->_ext_ptrs[name].obj = data_ptr;
+    this->_ext_ptrs[name].param = 0;
+    cl_int err = 0;
+    this->_buffers[name] = cl::Buffer(
+        this->_context,
+        buffer_type_flag | CL_MEM_EXT_PTR_XILINX | CL_MEM_USE_HOST_PTR,
+        size,
+        &(this->_ext_ptrs[name]),
+        &(err)
+    );
+    if (err) {
+        throw std::runtime_error(
+            "Creation of underlying cl::Buffer failed"
+            " with error code " + std::to_string(err)
+        );
+    }
+}
+
 void Device::bind_device(cl::Device cl_device) {
     this->_device = cl_device;
     // std::cout << *this << std::endl;
 }
 
-bool Device::contains_buffer(cl::Buffer& buf) const {
-    cl_context bufCtx;
-    cl_int err = buf.getInfo(CL_MEM_CONTEXT, &bufCtx);
-    if (err != CL_SUCCESS) throw std::runtime_error("Unable to obtain buffer context");
-    return bufCtx == this->_context();
+bool Device::contains_buffer(const std::string &name){
+    return this->_buffers.find(name) != this->_buffers.end();
 }
-bool Device::contains_buffer(cl::Buffer& buf) {
-    cl_context bufCtx;
-    cl_int err = buf.getInfo(CL_MEM_CONTEXT, &bufCtx);
-    if (err != CL_SUCCESS) throw std::runtime_error("Unable to obtain buffer context");
-    return bufCtx == this->_context();
+
+cl::Buffer Device::get_buffer(const std::string &name) {
+    return this->_buffers[name];
 }
 
 void Device::program_device(
     const std::string &xclbin_path
 ) {
+    cl_int err = 0;
+
     // load bitstream into FPGA
-    cl::Context cxt = cl::Context(this->_device, NULL, NULL, NULL);
-    this->_context = cxt;
+    this->_context = cl::Context(this->_device, NULL, NULL, NULL);;
 
     const std::string bitstream_file_name = xclbin_path;
     std::vector<unsigned char> file_buf = xcl::read_binary_file(bitstream_file_name);
     cl::Program::Binaries binary{{file_buf.data(), file_buf.size()}};
 
-    //cl_int err = 0;
-    cl::Program program(cxt, {this->_device}, binary, NULL, &(this->_errflag));
-    if (this->_errflag != CL_SUCCESS) {
+    err = 0;
+    this->program = cl::Program(this->_context, {this->_device}, binary, NULL, &(err));
+    if (err != CL_SUCCESS) {
         throw std::runtime_error("[ERROR]: Load bitstream failed, exit!\n");
     }
-    this->_program = program;
 
-    cl::CommandQueue cq(cxt, this->_device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE, &(this->_errflag));
-    if (this->_errflag != CL_SUCCESS) {
+    err = 0;
+    this->command_q = cl::CommandQueue(
+        this->_context, this->_device,
+        CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE,
+        &(err)
+    );
+    if (err != CL_SUCCESS) {
         throw std::runtime_error("[ERROR]: Failed to create command queue, exit!\n");
     }
-    this->command_q = cq;
 }
 
 std::string Device::name() {
@@ -80,6 +120,45 @@ void Device::finish_all_tasks() {
             + std::to_string(err) + ")"
         );
     }
+}
+
+void nb_sync_data_htod(xhl::Device* device, const std::string &buffer_name) {
+    cl_int err = device->command_q.enqueueMigrateMemObjects(
+        {device->get_buffer(buffer_name)},
+        0 /* 0 means from host */
+    );
+    if (err != CL_SUCCESS) {
+        throw std::runtime_error(
+            "Failed to migrate data for buffer to device (code:"
+            + std::to_string(err) + ")"
+        );
+    }
+}
+
+
+void nb_sync_data_dtoh(xhl::Device* device, const std::string &buffer_name) {
+    cl_int err = device->command_q.enqueueMigrateMemObjects(
+        {device->get_buffer(buffer_name)},
+        CL_MIGRATE_MEM_OBJECT_HOST
+    );
+    if (err != CL_SUCCESS) {
+        throw std::runtime_error(
+            "Failed to migrate data for buffer to device (code:"
+            + std::to_string(err) + ")"
+        );
+    }
+}
+
+
+void sync_data_htod(xhl::Device* device, const std::string &buffer_name) {
+    nb_sync_data_htod(device, buffer_name);
+    device->command_q.finish();
+}
+
+
+void sync_data_dtoh(xhl::Device* device, const std::string &buffer_name) {
+    nb_sync_data_dtoh(device, buffer_name);
+    device->command_q.finish();
 }
 
 } // namespace xhl

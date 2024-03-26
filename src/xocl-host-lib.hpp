@@ -9,12 +9,6 @@
 #include "xcl2.hpp"
 
 namespace xhl {
-class IBuffer;
-class Device;
-void nb_sync_data_htod(xhl::Device* d, xhl::IBuffer*);
-void nb_sync_data_dtoh(xhl::Device* d, xhl::IBuffer*);
-void sync_data_htod(xhl::Device* d, xhl::IBuffer*);
-void sync_data_dtoh(xhl::Device* d, xhl::IBuffer*);
 
 /**
  * @brief 4KB aligned vector.
@@ -28,10 +22,6 @@ template <typename T>
 using aligned_vector = std::vector<T, aligned_allocator<T>>;
 
 // config words
-/**
- * @brief Data migration direction
- */
-enum MigrateDirection {ToDevice, ToHost};
 /**
  * @brief Access control for the device
  */
