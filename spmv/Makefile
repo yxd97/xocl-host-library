@@ -3,51 +3,49 @@ ECHO = @echo
 # Points to top directory of Git repository
 COMMON_REPO = ..
 ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
+XOCL_HOST_LIB := $(ABS_COMMON_REPO)
+XCL2_LIB_DIR := $(ABS_COMMON_REPO)/xcl2
 
-TARGET := sw_emu#hw_emu
+TARGET := sw_emu
 FREQ := 450
 DEVICE = /opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
-TEST_PATH = /work/shared/users/meng/zs343/Host/xocl-host-library
-SO_PATH = /work/shared/users/meng/zs343/Host/xocl-host-library
 TEMP_DIR := ./build.$(TARGET)
 BUILD_DIR := ./build_output.$(TARGET)
 CFGFILE := spmv/spmv.ini
 
-IDIR += -I$(ABS_COMMON_REPO)/
-
-# IDIR += -L$(SO_PATH)
-# IDIR += -I$(SO_PATH)
-# IDIR += -I$(ABS_COMMON_REPO)/
-IDIR += -I$(ABS_COMMON_REPO)/xocl-host-library/
-IDIR += -I$(TEST_PATH) 
-
-CXXFLAGS += -I$(CNPY_INCLUDE)
-
-LDFLAGS += -L$(CNPY_LIB) -lcnpy
 
 VPP = v++
 CXX = g++
 HLS = vitis_hls
 
-#Include Libraries
-include $(ABS_COMMON_REPO)/xocl-host-library/opencl/opencl.mk
-include $(ABS_COMMON_REPO)/xocl-host-library/xcl2/xcl2.mk
-include $(ABS_COMMON_REPO)/spmv/deps.mk
+# Include CNPY
+CXXFLAGS += -I$(CNPY_INCLUDE)
+LDFLAGS += -L$(CNPY_LIB) -lcnpy
 
-CXXFLAGS += $(xcl2_CXXFLAGS)
-LDFLAGS += $(xcl2_LDFLAGS)
-HOST_SRCS += $(ABS_COMMON_REPO)/xocl-host-library$(xcl2_SRCS)
+# Include data loader
+include $(ABS_COMMON_REPO)/spmv/data.mk
+CXXFLAGS += $(data_loader_CXXFLAGS)
 
-HOST_SRCS += $(ABS_COMMON_REPO)/xocl-host-library/$(XHL_LIB_SRCS)
-HOST_HDRS += $(ABS_COMMON_REPO)/xocl-host-library/$(XHL_LIB_HDRS)
-
-CXXFLAGS += $(XHL_CXXFLAGS)
+# Include host Libraries
+include $(ABS_COMMON_REPO)/opencl/opencl.mk
 CXXFLAGS += $(opencl_CXXFLAGS)
 LDFLAGS += $(opencl_LDFLAGS)
-CXXFLAGS += $(IDIR) -Wall -O0 -g -std=c++1y
 
+include $(ABS_COMMON_REPO)/xcl2/xcl2.mk
+CXXFLAGS += $(xcl2_CXXFLAGS)
+LDFLAGS += $(xcl2_LDFLAGS)
+HOST_SRCS += $(xcl2_SRCS)
+
+include $(XOCL_HOST_LIB)/xhl.mk
+CXXFLAGS += $(xhl_CXXFLAGS)
+LDFLAGS += $(xhl_LDFLAGS)
+HOST_SRCS += $(xhl_SRCS)
+
+# host code
 HOST_SRCS += $(ABS_COMMON_REPO)/spmv/host.cpp
+
 # Host compiler global settings
+CXXFLAGS += $(IDIR) -Wall -O0 -g
 CXXFLAGS += -fmessage-length=0
 CXXFLAGS += -std=c++17
 LDFLAGS += -lrt -lstdc++
@@ -68,6 +66,7 @@ EXECUTABLE = host
 EMCONFIG_DIR = $(TEMP_DIR)
 
 BINARY_CONTAINERS += $(BUILD_DIR)/spmv.xclbin
+# BINARY_CONTAINERS += ./spmv.xclbin
 BINARY_CONTAINER_kernel_OBJS += $(TEMP_DIR)/spmv.xo
 
 CP = cp -rf

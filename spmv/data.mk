@@ -1,0 +1,1 @@
+data_loader_CXXFLAGS += -I$(XOCL_HOST_LIB)/spmv/data_loader

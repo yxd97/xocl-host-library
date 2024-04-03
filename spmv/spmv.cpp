@@ -12,20 +12,20 @@ void spmv (
     const unsigned num_rows,
     const unsigned num_cols
 ) {
-    #pragma HLS INTERFACE m_axi port=values         offset=slave bundle=gmem_mat1
-    #pragma HLS INTERFACE m_axi port=col_idx        offset=slave bundle=gmem_mat2
-    #pragma HLS INTERFACE m_axi port=row_ptr        offset=slave bundle=gmem_mat3
-    #pragma HLS INTERFACE m_axi port=vector_in      offset=slave bundle=gmem_vec1
-    #pragma HLS INTERFACE m_axi port=vector_out     offset=slave bundle=gmem_vec2
-    #pragma HLS INTERFACE s_axilite port=values     bundle=control
-    #pragma HLS INTERFACE s_axilite port=col_idx    bundle=control
-    #pragma HLS INTERFACE s_axilite port=row_ptr    bundle=control
-    #pragma HLS INTERFACE s_axilite port=vector_in  bundle=control
-    #pragma HLS INTERFACE s_axilite port=vector_out bundle=control
-    #pragma HLS INTERFACE s_axilite port=num_rows   bundle=control
-    #pragma HLS INTERFACE s_axilite port=num_cols   bundle=control
-    // #pragma HLS INTERFACE ap_ctrl_chain port=return
-    #pragma HLS INTERFACE s_axilite port=return     bundle=control
+    // #pragma HLS INTERFACE m_axi port=values         offset=slave bundle=gmem_mat1
+    // #pragma HLS INTERFACE m_axi port=col_idx        offset=slave bundle=gmem_mat2
+    // #pragma HLS INTERFACE m_axi port=row_ptr        offset=slave bundle=gmem_mat3
+    // #pragma HLS INTERFACE m_axi port=vector_in      offset=slave bundle=gmem_vec1
+    // #pragma HLS INTERFACE m_axi port=vector_out     offset=slave bundle=gmem_vec2
+    // #pragma HLS INTERFACE s_axilite port=values     bundle=control
+    // #pragma HLS INTERFACE s_axilite port=col_idx    bundle=control
+    // #pragma HLS INTERFACE s_axilite port=row_ptr    bundle=control
+    // #pragma HLS INTERFACE s_axilite port=vector_in  bundle=control
+    // #pragma HLS INTERFACE s_axilite port=vector_out bundle=control
+    // #pragma HLS INTERFACE s_axilite port=num_rows   bundle=control
+    // #pragma HLS INTERFACE s_axilite port=num_cols   bundle=control
+    // // #pragma HLS INTERFACE ap_ctrl_chain port=return
+    // #pragma HLS INTERFACE s_axilite port=return     bundle=control
 
     // int vec_buf[P][NUM_COLS];
     // #pragma HLS array_partition variable=vec_buf dim=1 complete

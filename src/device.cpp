@@ -104,6 +104,7 @@ std::vector<Device> find_devices(const xhl::BoardIdentifier &identifier) {
             (tmp_device).bind_device(cl_devices[i]); // use function
             devices.push_back(tmp_device);
             found_device = true;
+            std::cout << "device size: " << cl_devices.size() << std:: endl;
         }
     }
     if (!found_device) {
