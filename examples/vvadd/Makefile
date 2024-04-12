@@ -6,27 +6,21 @@ ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
 XOCL_HOST_LIB := $(ABS_COMMON_REPO)
 XCL2_LIB_DIR := $(ABS_COMMON_REPO)/xcl2
 
-TARGET := sw_emu
+TARGET := hw
 FREQ := 450
 DEVICE = /opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
 TEMP_DIR := ./build.$(TARGET)
 BUILD_DIR := ./build_output.$(TARGET)
-CFGFILE := examples/spmv/spmv.ini
+CFGFILE := examples/vvadd/vvadd.ini
 
+# CXXFLAGS += -I$(CNPY_INCLUDE)
+# LDFLAGS += -L$(CNPY_LIB) -lcnpy
 
 VPP = v++
 CXX = g++
 HLS = vitis_hls
 
-# Include CNPY
-CXXFLAGS += -I$(CNPY_INCLUDE)
-LDFLAGS += -L$(CNPY_LIB) -lcnpy
-
-# Include data loader
-include $(ABS_COMMON_REPO)/examples/spmv/data.mk
-CXXFLAGS += $(data_loader_CXXFLAGS)
-
-# Include host Libraries
+#Include host Libraries
 include $(ABS_COMMON_REPO)/opencl/opencl.mk
 CXXFLAGS += $(opencl_CXXFLAGS)
 LDFLAGS += $(opencl_LDFLAGS)
@@ -42,7 +36,7 @@ LDFLAGS += $(xhl_LDFLAGS)
 HOST_SRCS += $(xhl_SRCS)
 
 # host code
-HOST_SRCS += $(ABS_COMMON_REPO)/examples/spmv/host.cpp
+HOST_SRCS += $(ABS_COMMON_REPO)/examples/vvadd/host.cpp
 
 # Host compiler global settings
 CXXFLAGS += $(IDIR) -Wall -O0 -g
@@ -65,9 +59,9 @@ LDCLFLAGS +=
 EXECUTABLE = host
 EMCONFIG_DIR = $(TEMP_DIR)
 
-BINARY_CONTAINERS += $(BUILD_DIR)/spmv.xclbin
-# BINARY_CONTAINERS += ./spmv.xclbin
-BINARY_CONTAINER_kernel_OBJS += $(TEMP_DIR)/spmv.xo
+BINARY_CONTAINERS += $(BUILD_DIR)/vvadd.xclbin
+# BINARY_CONTAINERS += ./vvadd.xclbin
+BINARY_CONTAINER_kernel_OBJS += $(TEMP_DIR)/vvadd.xo
 
 CP = cp -rf
 RMDIR = rm -rf
@@ -94,9 +88,9 @@ ifndef XILINX_VITIS
 endif
 
 # Building kernel
-$(TEMP_DIR)/spmv.xo: spmv.cpp
+$(TEMP_DIR)/vvadd.xo: vvadd.cpp
 	mkdir -p $(TEMP_DIR)
-	$(VPP) $(CLFLAGS) --temp_dir $(TEMP_DIR) -c -k spmv -I'$(<D)'  -o'$@' spmv.cpp
+	$(VPP) $(CLFLAGS) --temp_dir $(TEMP_DIR) -c -k vvadd -I'$(<D)'  -o'$@' vvadd.cpp
 
 $(BINARY_CONTAINERS): $(BINARY_CONTAINER_kernel_OBJS)
 	$(VPP) $(CLFLAGS) --temp_dir $(TEMP_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
@@ -114,7 +108,7 @@ ifeq ($(TARGET),$(filter $(TARGET),sw_emu hw_emu))
 	$(CP) $(EMCONFIG_DIR)/emconfig.json .
 	XCL_EMULATION_MODE=$(TARGET) ./$(EXECUTABLE) $(BINARY_CONTAINERS)
 else
-	./$(EXECUTABLE) $(BUILD_DIR)/spmv.xclbin
+	./$(EXECUTABLE) $(BUILD_DIR)/vvadd.xclbin
 endif
 
 # Cleaning stuff

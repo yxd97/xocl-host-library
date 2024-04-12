@@ -24,4 +24,14 @@ xsa.xml
 
 # compiled host binaries
 spmv_host
-host
+examples/*/host
+examples/burst_engine/hard_bitstream
+examples/burst_engine/host.old.cpp
+
+examples/*/*.xclbin
+examples/*/*.xclbin.info
+examples/*/*.xclbin.link_summary
+
+examples/*/*.build_output.sw_emu
+examples/*/*.build_output.hw_emu
+examples/*/*.build_output.hw
