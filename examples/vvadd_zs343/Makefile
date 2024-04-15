@@ -36,7 +36,7 @@ LDFLAGS += $(xhl_LDFLAGS)
 HOST_SRCS += $(xhl_SRCS)
 
 # host code
-HOST_SRCS += $(ABS_COMMON_REPO)/examples/_zs343/host.cpp
+HOST_SRCS += $(ABS_COMMON_REPO)/examples/vvadd_zs343/host.cpp
 
 # Host compiler global settings
 CXXFLAGS += $(IDIR) -Wall -O0 -g

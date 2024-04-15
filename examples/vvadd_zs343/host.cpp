@@ -18,8 +18,8 @@
 // Utilities
 //--------------------------------------------------------------------------------------------------
 bool check_ref(
-    std::vector<int> v,
-    std::vector<int> ref,
+    xhl::aligned_vector<int> v,
+    xhl::aligned_vector<int> ref,
     bool stop_on_mismatch = true
 ) {
     // check length
@@ -78,13 +78,13 @@ int main(int argc, char** argv) {
     vvadd_cu.bind(&device_1);
 
     // generate inputs/outputs
-    std::vector<int> in1(DATA_SIZE);
-    std::vector<int> in2(DATA_SIZE);
-    std::vector<int> in3(DATA_SIZE);
-    std::vector<int> out_ref(DATA_SIZE);
-    std::vector<int> out_ref_2(DATA_SIZE);
-    std::vector<int> out(DATA_SIZE);
-    std::vector<int> out_2(DATA_SIZE);
+    xhl::aligned_vector<int> in1(DATA_SIZE);
+    xhl::aligned_vector<int> in2(DATA_SIZE);
+    xhl::aligned_vector<int> in3(DATA_SIZE);
+    xhl::aligned_vector<int> out_ref(DATA_SIZE);
+    xhl::aligned_vector<int> out_ref_2(DATA_SIZE);
+    xhl::aligned_vector<int> out(DATA_SIZE);
+    xhl::aligned_vector<int> out_2(DATA_SIZE);
 
     std::generate(
         in1.begin(), in1.end(),
