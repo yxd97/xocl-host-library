@@ -6,7 +6,7 @@ ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
 XOCL_HOST_LIB := $(ABS_COMMON_REPO)
 XCL2_LIB_DIR := $(ABS_COMMON_REPO)/xcl2
 
-TARGET := hw
+TARGET := sw_emu
 FREQ := 450
 DEVICE = /opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
 TEMP_DIR := ./build.$(TARGET)
@@ -35,8 +35,13 @@ CXXFLAGS += $(xhl_CXXFLAGS)
 LDFLAGS += $(xhl_LDFLAGS)
 HOST_SRCS += $(xhl_SRCS)
 
+include $(XOCL_HOST_LIB)/examples/vvadd_zs343/module_vvadd/module_vvadd.mk
+CXXFLAGS += $(module_vvadd_CXXFLAGS)
+HOST_SRCS += $(module_vvadd_SRCS)
+
+
 # host code
-HOST_SRCS += $(ABS_COMMON_REPO)/examples/_zs343/host.cpp
+HOST_SRCS += $(ABS_COMMON_REPO)/examples/vvadd_zs343/host.cpp
 
 # Host compiler global settings
 CXXFLAGS += $(IDIR) -Wall -O0 -g

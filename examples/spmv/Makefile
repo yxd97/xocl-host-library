@@ -6,7 +6,7 @@ ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
 XOCL_HOST_LIB := $(ABS_COMMON_REPO)
 XCL2_LIB_DIR := $(ABS_COMMON_REPO)/xcl2
 
-TARGET := sw_emu
+TARGET := hw
 FREQ := 450
 DEVICE = /opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
 TEMP_DIR := ./build.$(TARGET)
@@ -128,6 +128,5 @@ cleanall: clean
 	-$(RMDIR) build*
 	-$(RMDIR) package.*
 	-$(RMDIR) *xclbin.run_summary qemu-memory-_* emulation/ _vimage/ pl* start_simulation.sh *.xclbin
-
 
 
