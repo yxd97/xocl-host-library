@@ -10,10 +10,10 @@ void spmv (
     const int* vector_in,
     int* vector_out,
 
-    int* values_out,
-    int* col_idx_out,
-    int* row_ptr_out,
-    int* vector_in_out,
+    // int* values_out,
+    // int* col_idx_out,
+    // int* row_ptr_out,
+    // int* vector_in_out,
 
     const unsigned num_rows,
     const unsigned num_cols
@@ -62,16 +62,16 @@ void spmv (
     //     vector_out[rid] = acc;
     // }
 
-    for (unsigned i = 0; i < 6; ++i) {
-        values_out[i] = values[i];
-        col_idx_out[i] = col_idx[i];
-    }
-    for (unsigned i = 0; i < 4; ++i) {
-        row_ptr_out[i] = row_ptr[i];
-    }
-    for (unsigned i = 0; i < 3; ++i) {
-        vector_in_out[i] = vector_in[i];
-    }
+    // for (unsigned i = 0; i < 6; ++i) {
+    //     values_out[i] = values[i];
+    //     col_idx_out[i] = col_idx[i];
+    // }
+    // for (unsigned i = 0; i < 4; ++i) {
+    //     row_ptr_out[i] = row_ptr[i];
+    // }
+    // for (unsigned i = 0; i < 3; ++i) {
+    //     vector_in_out[i] = vector_in[i];
+    // }
 
     // initialize vector_out
     for (unsigned i = 0; i < num_rows; i++) {

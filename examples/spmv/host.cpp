@@ -167,12 +167,12 @@ int main(int argc, char** argv) {
         {"row_ptr",  "int*"},
         {"vector_in", "int*"},
         {"vector_out", "int*"},
-        // only for test
-        {"adj_data_out", "int*"},
-        {"adj_indices_out", "uint32_t*"},
-        {"adj_indptr_out", "uint32_t*"},
-        {"vector_in_out", "int*"},
-        //
+        // // only for test
+        // {"adj_data_out", "int*"},
+        // {"adj_indices_out", "uint32_t*"},
+        // {"adj_indptr_out", "uint32_t*"},
+        // {"vector_in_out", "int*"},
+        // //
         {"num_rows", "int"},
         {"num_cols", "int"}}
     };
@@ -210,23 +210,23 @@ int main(int argc, char** argv) {
         "vector_out", (mat_i.num_rows) * sizeof(int), vector_o.data(), 
         xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[4]
     );
-    // only for test
-    device.create_buffer(
-        "values_out", (adj_data_out.size()) * sizeof(int), adj_data_out.data(),
-        xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[5]
-    );
-    device.create_buffer(
-        "col_idx_out", (adj_indices_out.size()) * sizeof(uint32_t), adj_indices_out.data(),
-        xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[6]
-    );
-    device.create_buffer(
-        "row_ptr_out", (adj_indptr_out.size()) * sizeof(uint32_t), adj_indptr_out.data(),
-        xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[7]
-    );
-    device.create_buffer(
-        "vector_in_out", (mat_i.num_cols) * sizeof(int), vector_in_out.data(),
-        xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[8]
-    );
+    // // only for test
+    // device.create_buffer(
+    //     "values_out", (adj_data_out.size()) * sizeof(int), adj_data_out.data(),
+    //     xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[5]
+    // );
+    // device.create_buffer(
+    //     "col_idx_out", (adj_indices_out.size()) * sizeof(uint32_t), adj_indices_out.data(),
+    //     xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[6]
+    // );
+    // device.create_buffer(
+    //     "row_ptr_out", (adj_indptr_out.size()) * sizeof(uint32_t), adj_indptr_out.data(),
+    //     xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[7]
+    // );
+    // device.create_buffer(
+    //     "vector_in_out", (mat_i.num_cols) * sizeof(int), vector_in_out.data(),
+    //     xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[8]
+    // );
     // // output mat_i.adj_data
     // for (size_t i = 0; i < mat_i.adj_data.size(); ++i) {
     //     std::cout << "i: " << i << "\t" << mat_i.adj_data[i] << std::endl;
@@ -276,22 +276,22 @@ int main(int argc, char** argv) {
         device._buffers["row_ptr"],
         device._buffers["vector_in"],
         device._buffers["vector_out"],
-        // only for test
-        device._buffers["values_out"],
-        device._buffers["col_idx_out"],
-        device._buffers["row_ptr_out"],
-        device._buffers["vector_in_out"],
-        //
+        // // only for test
+        // device._buffers["values_out"],
+        // device._buffers["col_idx_out"],
+        // device._buffers["row_ptr_out"],
+        // device._buffers["vector_in_out"],
+        // //
         mat_i.num_rows,
         mat_i.num_cols
     );
     device.finish_all_tasks();
     xhl::sync_data_dtoh(&device, "vector_out");
-    // only for test
-    xhl::sync_data_dtoh(&device, "values_out");
-    xhl::sync_data_dtoh(&device, "col_idx_out");
-    xhl::sync_data_dtoh(&device, "row_ptr_out");
-    xhl::sync_data_dtoh(&device, "vector_in_out");
+    // // only for test
+    // xhl::sync_data_dtoh(&device, "values_out");
+    // xhl::sync_data_dtoh(&device, "col_idx_out");
+    // xhl::sync_data_dtoh(&device, "row_ptr_out");
+    // xhl::sync_data_dtoh(&device, "vector_in_out");
     // 
     // output adj_data_out
     // std::cout << "adj_data_out:" << std::endl;
