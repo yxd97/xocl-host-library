@@ -18,10 +18,10 @@ private:
 cl::Device _device;
 cl::Context _context;
 
-std::unordered_map<std::string, cl_mem_ext_ptr_t> _ext_ptrs;
-std::unordered_map<std::string, cl::Buffer> _buffers;
 
 public:
+std::unordered_map<std::string, cl_mem_ext_ptr_t> _ext_ptrs;
+std::unordered_map<std::string, cl::Buffer> _buffers;
 cl::CommandQueue command_q; // used to queue tasks
 cl::Program program; // used to create kernel
 
@@ -79,9 +79,8 @@ cl::Buffer get_buffer(const std::string &name);
  *
  * @exception fail to load bitstream
  */
-std::vector<ComputeUnit> program_device(
-    const std::string &xclbin_path,
-    const std::vector<KernelSignature> &kernel_signatures
+void program_device(
+    const std::string &xclbin_path
 );
 
 /**

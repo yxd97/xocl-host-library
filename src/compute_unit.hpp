@@ -55,7 +55,7 @@ ComputeUnit() = delete; // don't provide default constructor
  *
  * @param Kernel class under xhl namespace
  */
-ComputeUnit(struct xhl::KernelSignature ks) : cu_device(nullptr) { // add xhl::kernel and assign it to computeunit.
+ComputeUnit(const struct xhl::KernelSignature ks) : cu_device(nullptr) { // add xhl::kernel and assign it to computeunit.
     this->signature = ks;
 }
 

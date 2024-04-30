@@ -271,11 +271,11 @@ int main(int argc, char** argv) {
     //     mat_i.num_cols
     // );
     spmv_cu.launch(
-        device._buffers["values"],
-        device._buffers["col_idx"],
-        device._buffers["row_ptr"],
-        device._buffers["vector_in"],
-        device._buffers["vector_out"],
+        device.get_buffer("values"),
+        device.get_buffer("col_idx"),
+        device.get_buffer("row_ptr"),
+        device.get_buffer("vector_in"),
+        device.get_buffer("vector_out"),
         // // only for test
         // device._buffers["values_out"],
         // device._buffers["col_idx_out"],

@@ -18,10 +18,10 @@ private:
 cl::Device _device;
 cl::Context _context;
 
-
-public:
 std::unordered_map<std::string, cl_mem_ext_ptr_t> _ext_ptrs;
 std::unordered_map<std::string, cl::Buffer> _buffers;
+
+public:
 cl::CommandQueue command_q; // used to queue tasks
 cl::Program program; // used to create kernel
 
@@ -82,6 +82,8 @@ cl::Buffer get_buffer(const std::string &name);
 void program_device(
     const std::string &xclbin_path
 );
+
+ComputeUnit* find(const KernelSignature &signature);
 
 /**
  * @brief get the name of the device

@@ -26,9 +26,14 @@ void Device::create_buffer(
             throw std::runtime_error("Invalid buffer type");
         break;
     }
-    this->_ext_ptrs[name].flags = memory_channel_name;
-    this->_ext_ptrs[name].obj = data_ptr;
-    this->_ext_ptrs[name].param = 0;
+    cl_mem_ext_ptr_t eptr;
+    eptr.flags = memory_channel_name;
+    eptr.obj = data_ptr;
+    eptr.param = 0;
+    // this->_ext_ptrs[name].flags = memory_channel_name;
+    // this->_ext_ptrs[name].obj = data_ptr;
+    // this->_ext_ptrs[name].param = 0;
+    this->_ext_ptrs[name] = eptr;
     cl_int err = 0;
     this->_buffers[name] = cl::Buffer(
         this->_context,
@@ -58,9 +63,8 @@ cl::Buffer Device::get_buffer(const std::string &name) {
     return this->_buffers[name];
 }
 
-std::vector<ComputeUnit> Device::program_device(
-    const std::string &xclbin_path,
-    const std::vector<KernelSignature> &kernel_signatures
+void Device::program_device(
+    const std::string &xclbin_path
 ) {
     cl_int err = 0;
 
@@ -86,15 +90,6 @@ std::vector<ComputeUnit> Device::program_device(
     if (err != CL_SUCCESS) {
         throw std::runtime_error("[ERROR]: Failed to create command queue, exit!\n");
     }
-
-    std::vector<ComputeUnit> cus;
-    for (const auto &signature : kernel_signatures) {
-        // create compute unit from kernel signature and bind it to the device
-        ComputeUnit cu(signature);
-        cu.bind(this);
-        cus.push_back(cu);
-    }
-    return cus;
 }
 
 std::string Device::name() {
@@ -137,7 +132,8 @@ void Device::finish_all_tasks() {
 
 void nb_sync_data_htod(xhl::Device* device, const std::string &buffer_name) {
     cl_int err = device->command_q.enqueueMigrateMemObjects(
-        {device->get_buffer(buffer_name)},
+        // {device->get_buffer(buffer_name)},
+        {device->_buffers[buffer_name]},
         0 /* 0 means from host */
     );
     if (err != CL_SUCCESS) {
@@ -151,7 +147,8 @@ void nb_sync_data_htod(xhl::Device* device, const std::string &buffer_name) {
 
 void nb_sync_data_dtoh(xhl::Device* device, const std::string &buffer_name) {
     cl_int err = device->command_q.enqueueMigrateMemObjects(
-        {device->get_buffer(buffer_name)},
+        // {device->get_buffer(buffer_name)},
+        {device->_buffers[buffer_name]},
         CL_MIGRATE_MEM_OBJECT_HOST
     );
     if (err != CL_SUCCESS) {
