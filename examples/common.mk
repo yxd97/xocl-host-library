@@ -9,10 +9,11 @@ MAKE_XCLBIN = v++ -l
 MAKE_HOST = $(CC)
 
 # the absolute path to the examples directory
-REPO_ROOT := $(abspath ../..)
+REPO_ROOT := $(shell readlink -f ../..)
 EXAMPLES_DIR := $(REPO_ROOT)/examples
 
 # host flags for OpenCL and XRT
+XCL2_LIB_DIR := $(REPO_ROOT)/xcl2
 include $(REPO_ROOT)/xcl2/xcl2.mk
 HOST_SRCS += $(xcl2_SRCS)
 HOST_CC_FLAGS += $(xcl2_CXXFLAGS)
