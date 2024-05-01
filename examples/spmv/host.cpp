@@ -13,6 +13,8 @@
 #include "data_formatter.h"
 #include "data_loader.h"
 
+#include "timer.h"
+
 #include "xcl2.hpp"
 
 typedef unsigned IDX_T;
@@ -129,6 +131,12 @@ int main(int argc, char** argv) {
     std::copy(mat_i.adj_indptr.begin(), mat_i.adj_indptr.end(), adj_indptr.begin());
 
     //--------------------------------------------------------------------
+    // Profiling Setup
+    //--------------------------------------------------------------------
+    TIMER_INIT(time);
+    Measure compute_time;
+
+    //--------------------------------------------------------------------
     // Compute Unit Setup
     //--------------------------------------------------------------------
     std::cout << "INFO : Distributed SpMV 3 Iterations Test" << std::endl;
@@ -178,21 +186,24 @@ int main(int argc, char** argv) {
     xhl::sync_data_htod(&device, "vector_in");
 
     for (int i = 0; i < N; i++) {
-        spmv_cu.launch(
-            device.get_buffer("values"),
-            device.get_buffer("col_idx"),
-            device.get_buffer("row_ptr"),
-            device.get_buffer("vector_in"),
-            device.get_buffer("vector_out"),
-            mat_i.num_rows,
-            mat_i.num_cols
-        );
-        device.finish_all_tasks();
-        if (i != N-1) {
-            xhl::sync_data_dtoh(&device, "vector_out");
-            std::copy(vector_out.begin(), vector_out.end(), vector_in.begin());
-            xhl::sync_data_htod(&device, "vector_in");
+        TIME_IT(time) {
+            spmv_cu.launch(
+                device.get_buffer("values"),
+                device.get_buffer("col_idx"),
+                device.get_buffer("row_ptr"),
+                device.get_buffer("vector_in"),
+                device.get_buffer("vector_out"),
+                mat_i.num_rows,
+                mat_i.num_cols
+            );
+            device.finish_all_tasks();
+            if (i != N-1) {
+                xhl::sync_data_dtoh(&device, "vector_out");
+                std::copy(vector_out.begin(), vector_out.end(), vector_in.begin());
+                xhl::sync_data_htod(&device, "vector_in");
+            }
         }
+        compute_time.addSample(time);
     }
     xhl::sync_data_dtoh(&device, "vector_out");
 
@@ -201,6 +212,8 @@ int main(int argc, char** argv) {
     //--------------------------------------------------------------------
     bool pass = check_buffer(vector_out, ref_result);
     std::cout << (pass ? "[INFO]: Test Passed !" : "[ERROR]: Test Failed!") << std::endl;
+    std::cout << "\t\tTotal\t\tAvg\t\tMin\t\tMax" << std::endl;
+    std::cout << "Compute:\t" << compute_time << std::endl;
     
     std::cout << "INFO : SpMV kernel complete!" << std::endl;
 

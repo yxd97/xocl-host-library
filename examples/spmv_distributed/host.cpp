@@ -13,70 +13,48 @@
 #include "link.hpp"
 #include "data_formatter.h"
 #include "data_loader.h"
+#include "host_memory_link.hpp"
+
+#include "timer.h"
 
 #include "xcl2.hpp"
 
 typedef unsigned IDX_T;
-class HostMemoryLink : public xhl::Link {
-    private:
-        xhl::Device *const src_device, *const dst_device;
-    public:
-        HostMemoryLink(xhl::Device* src_device, xhl::Device* dst_device)
-            : src_device(src_device), dst_device(dst_device) {}
-        void transfer(const std::string &src_buffer, const std::string &dst_buffer) override {
-            size_t src_size = xhl::get_size(src_device, src_buffer);
-            size_t dst_size = xhl::get_size(dst_device, dst_buffer);
-            transfer(src_buffer, dst_buffer, 0, 0, std::min(src_size, dst_size));
-        }
-        void transfer(const std::string &src_buffer, const std::string &dst_buffer,
-            size_t src_offset, size_t dst_offset, size_t byte_count) override {
-            try {
-                xhl::nb_sync_data_dtoh(src_device, src_buffer);
-                size_t src_size = xhl::get_size(src_device, src_buffer);
-                size_t dst_size = xhl::get_size(dst_device, dst_buffer);
-                void *src_data  = xhl::get_data_ptr(src_device, src_buffer);
-                void *dst_data  = xhl::get_data_ptr(dst_device, dst_buffer);
-                src_device->finish_all_tasks();
-
-                if (src_offset+byte_count > src_size ||
-                    dst_offset+byte_count > dst_size ||
-                    src_offset < 0 ||
-                    dst_offset < 0)
-                    throw std::invalid_argument("Index out of bounds");
-
-                std::copy((uint8_t*)src_data+src_offset,
-                          (uint8_t*)src_data+src_offset+byte_count,
-                          (uint8_t*)dst_data+dst_offset);
-                
-                xhl::sync_data_htod(dst_device, dst_buffer);
-            }
-            catch (const std::exception& e) {
-                throw std::runtime_error("Failed to transfer data from " + src_buffer +
-                    " to " + dst_buffer + " because of\n" + e.what());
-            }
-        }
-};
-
-spmv::io::CSRMatrix<int> partitionRows(
+std::vector<spmv::io::CSRMatrix<int>> partitionMatrixIn2(
     spmv::io::CSRMatrix<int> matrix,
-    size_t partition,
-    size_t partitions
+    bool balance_workload = false
 ) {
-    spmv::io::CSRMatrix<int> part;
-    part.num_cols = matrix.num_cols;
-    part.num_rows = ((partition+1) * matrix.num_rows / partitions) -
-                    (partition * matrix.num_rows / partitions);
-    uint32_t start = partition * matrix.num_rows / partitions;
-    uint32_t end = start + part.num_rows;
-    part.adj_indptr.push_back(0);
-    for(uint32_t i = start; i < end; i++) {
-        for (uint32_t j = matrix.adj_indptr[i]; j < matrix.adj_indptr[i+1]; j++) {
-            part.adj_indices.push_back(matrix.adj_indices[j]);
-            part.adj_data.push_back(matrix.adj_data[j]);
-        }
-        part.adj_indptr.push_back(part.adj_data.size());
+    std::vector<spmv::io::CSRMatrix<int>> partitions;
+    uint32_t row_partition[2] = {matrix.num_rows / 2, matrix.num_rows - matrix.num_rows / 2};
+    if (balance_workload) {
+        size_t half = matrix.adj_indices.size() / 2;
+        size_t ind;
+        for (ind = 0; ind < matrix.adj_indptr.size(); ind++)
+            if (matrix.adj_indptr[ind] > half)
+                break;
+        if (ind != 0 && half-matrix.adj_indptr[ind-1] < matrix.adj_indptr[ind] - half)
+            --ind;
+        row_partition[0] = ind;
+        row_partition[1] = matrix.num_rows - ind;
     }
-    return part;
+    uint32_t start = 0;
+    for (int p = 0; p < 2; p++) {
+        spmv::io::CSRMatrix<int> part;
+        part.num_cols = matrix.num_cols;
+        part.num_rows = row_partition[p];
+        uint32_t end = start + part.num_rows;
+        part.adj_indptr.push_back(0);
+        for(uint32_t i = start; i < end; i++) {
+            for (uint32_t j = matrix.adj_indptr[i]; j < matrix.adj_indptr[i+1]; j++) {
+                part.adj_indices.push_back(matrix.adj_indices[j]);
+                part.adj_data.push_back(matrix.adj_data[j]);
+            }
+            part.adj_indptr.push_back(part.adj_data.size());
+        }
+        partitions.push_back(part);
+        start += row_partition[p];
+    }
+    return partitions;
 }
 
 bool check_buffer(
@@ -146,9 +124,14 @@ int main(int argc, char** argv) {
     const int N = 3;
     // parse arguments
     if(argc < 3) {
-        std::cout << "Usage : " << argv[0] << " <xclbin path> <dataset path>" << std::endl;
+        std::cout << "Usage : " << argv[0] << " <xclbin path> <dataset path> [balance_workload]" << std::endl;
         std::cout << "Aborting..." << std::endl;
         return 1;
+    }
+    bool balance_workload = false;
+    if (argc > 3) {
+        if (strcmp(argv[3], "true") == 0)
+            balance_workload = true;
     }
 
     //--------------------------------------------------------------------
@@ -161,14 +144,12 @@ int main(int argc, char** argv) {
         spmv::io::csr_matrix_convert_from_float<int>(
             mat_f
         );
-    std::vector<spmv::io::CSRMatrix<int>> pmat = {
-        partitionRows(mat, 0, 2), partitionRows(mat, 1, 2)
-    };
+    std::vector<spmv::io::CSRMatrix<int>> pmat = partitionMatrixIn2(mat_i, balance_workload);
 
     //--------------------------------------------------------------------
     // generate input vector
     //--------------------------------------------------------------------
-    std::vector<int> vector_i(mat.num_cols);
+    std::vector<int> vector_i(mat_i.num_cols);
     std::generate(
         vector_i.begin(), 
         vector_i.end(), 
@@ -179,7 +160,7 @@ int main(int argc, char** argv) {
     // compute reference
     //--------------------------------------------------------------------
     std::vector<int> ref_result;
-    compute_ref(mat, vector_i, ref_result, N);
+    compute_ref(mat_i, vector_i, ref_result, N);
     std::cout << "INFO : Compute reference complete!" << std::endl;
 
     //--------------------------------------------------------------------
@@ -201,6 +182,12 @@ int main(int argc, char** argv) {
         std::copy(pmat[i].adj_indices.begin(), pmat[i].adj_indices.end(), adj_indices_vec[i].begin());
         std::copy(pmat[i].adj_indptr.begin(), pmat[i].adj_indptr.end(), adj_indptr_vec[i].begin());
     }
+
+    //--------------------------------------------------------------------
+    // Profiling Setup
+    //--------------------------------------------------------------------
+    TIMER_INIT(time);
+    Measure compute_time, communicate_time;
 
     //--------------------------------------------------------------------
     // Compute Unit Setup
@@ -272,25 +259,31 @@ int main(int argc, char** argv) {
     // Compute Unit Launch
     //--------------------------------------------------------------------
     for (int i = 0; i < N; i++) {
-        for (int j = 0; j < 2; j++) {
-            cus[j].launch(
-                devices[j].get_buffer("values"),
-                devices[j].get_buffer("col_idx"),
-                devices[j].get_buffer("row_ptr"),
-                devices[j].get_buffer("vector_in"),
-                devices[j].get_buffer("vector_out"),
-                pmat[j].num_rows,
-                pmat[j].num_cols
-            );
+        TIME_IT(time) {
+            for (int j = 0; j < 2; j++) {
+                cus[j].launch(
+                    devices[j].get_buffer("values"),
+                    devices[j].get_buffer("col_idx"),
+                    devices[j].get_buffer("row_ptr"),
+                    devices[j].get_buffer("vector_in"),
+                    devices[j].get_buffer("vector_out"),
+                    pmat[j].num_rows,
+                    pmat[j].num_cols
+                );
+            }
+            for (int j = 0; j < 2; j++)
+                devices[j].finish_all_tasks();
         }
-        for (int j = 0; j < 2; j++)
-            devices[j].finish_all_tasks();
+        compute_time.addSample(time);
 
         if (i != N-1) {
-            link_00->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
-            link_01->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
-            link_11->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
-            link_10->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
+            TIME_IT(time) {
+                link_00->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
+                link_01->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
+                link_11->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
+                link_10->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
+            }
+            communicate_time.addSample(time);
         }
     }
     
@@ -302,11 +295,14 @@ int main(int argc, char** argv) {
     //--------------------------------------------------------------------
     // compare result
     //--------------------------------------------------------------------
-    std::vector<int> vector_out(mat.num_rows);
+    std::vector<int> vector_o(mat_i.num_rows);
     std::copy(vector_out_vec[0].begin(), vector_out_vec[0].end(), vector_o.begin());
     std::copy(vector_out_vec[1].begin(), vector_out_vec[1].end(), vector_o.begin()+pmat[0].num_rows);
     bool pass = check_buffer(vector_o, ref_result);
     std::cout << (pass ? "[INFO]: Test Passed !" : "[ERROR]: Test Failed!") << std::endl;
+    std::cout << "\t\tTotal\t\tAvg\t\tMin\t\tMax" << std::endl;
+    std::cout << "Compute:\t" << compute_time << std::endl;
+    std::cout << "Communicate:\t" << communicate_time << std::endl;
     
     std::cout << "INFO : SpMV kernel complete!" << std::endl;
 
