@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
             mat_f
         );
     std::vector<spmv::io::CSRMatrix<int>> pmat = partitionMatrixIn2(mat_i, balance_workload);
-
+    
     //--------------------------------------------------------------------
     // generate input vector
     //--------------------------------------------------------------------
@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
     //--------------------------------------------------------------------
     // Compute Unit Setup
     //--------------------------------------------------------------------
-    std::cout << "INFO : Distributed SpMV 3 Iterations Test" << std::endl;
+    std::cout << "INFO : Distributed SpMV 3 Iterations Test (" << (balance_workload?"balanced":"not balanced") << ")" << std::endl;
     const xhl::KernelSignature spmv = {
         "spmv",
         {{"values",  "int*"},

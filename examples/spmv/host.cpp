@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
         spmv::io::csr_matrix_convert_from_float<int>(
             mat_f
         );
-
+    
     //--------------------------------------------------------------------
     // generate input vector
     //--------------------------------------------------------------------
@@ -139,7 +139,7 @@ int main(int argc, char** argv) {
     //--------------------------------------------------------------------
     // Compute Unit Setup
     //--------------------------------------------------------------------
-    std::cout << "INFO : Distributed SpMV 3 Iterations Test" << std::endl;
+    std::cout << "INFO : SpMV 3 Iterations Test" << std::endl;
     xhl::KernelSignature spmv = {
         "spmv",
         {{"values",  "int*"},

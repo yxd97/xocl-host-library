@@ -10,8 +10,8 @@ if [ $HOSTNAME = zhang-capra-xcel.ece.cornell.edu ]; then
     export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
     export LD_LIBRARY_PATH=/work/zhang-capra/common/lib:$LD_LIBRARY_PATH
     export CPATH=/usr/include/x86_64-linux-gnu:$CPATH
-    export CNPY_INCLUDE=/home/zs343/zs343/build/cnpy
-    export CNPY_LIB=/home/zs343/zs343/build/lib
+    export CNPY_INCLUDE="/work/shared/common/project_build/graphblas/software/cnpy/"
+    export CNPY_LIB="/work/shared/common/project_build/graphblas/software/cnpy/build/"
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CNPY_LIB
 else
     source scl_source enable devtoolset-8
@@ -20,8 +20,8 @@ else
     export HLS_INCLUDE=/opt/xilinx/2022.1/Vitis_HLS/2022.1/include
     export LD_LIBRARY_PATH=/opt/xilinx/2022.1/Vitis/2022.1/lib/lnx64.o:$LD_LIBRARY_PATH
     export LD_LIBRARY_PATH=/opt/xilinx/2022.1/Vitis/2022.1/lib/lnx64.o/Default:$LD_LIBRARY_PATH
-    export CNPY_INCLUDE=/home/zs343/zs343/build/cnpy
-    export CNPY_LIB=/home/zs343/zs343/build/lib
+    export CNPY_INCLUDE="/work/shared/common/project_build/graphblas/software/cnpy/"
+    export CNPY_LIB="/work/shared/common/project_build/graphblas/software/cnpy/build/"
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CNPY_LIB
 fi
 echo Vitis-2022.1 setup finished
