@@ -14,19 +14,12 @@
 #include "data_loader.h"
 
 #include "xcl2.hpp"
-// #define output_size 5
-// #define num_cols 5
-template<typename T>
-using aligned_vector = std::vector<T, aligned_allocator<T> >;
-
-#define DATA_SIZE 107614
 
 typedef unsigned IDX_T;
-
 // check buffer
 bool check_buffer(
-    aligned_vector<int> v,
-    aligned_vector<int> ref,
+    xhl::aligned_vector<int> v,
+    std::vector<int> ref,
     bool stop_on_mismatch = true
 ) {
     // check length
@@ -57,57 +50,88 @@ bool check_buffer(
 //-----------------------------------------------------------------------------
 void compute_ref(
     spmv::io::CSRMatrix<int> &mat,
-    aligned_vector<int> &vector,
-    aligned_vector<int> &ref_result
+    std::vector<int> &vector,
+    std::vector<int> &ref_result
 ) {
     ref_result.resize(mat.num_rows);
     std::fill(ref_result.begin(), ref_result.end(), 0);
     for (size_t row_idx = 0; row_idx < mat.num_rows; row_idx++) {
-        IDX_T start = mat.adj_indptr[row_idx];
-        IDX_T end = mat.adj_indptr[row_idx + 1];
+        uint32_t start = mat.adj_indptr[row_idx];
+        uint32_t end = mat.adj_indptr[row_idx + 1];
         for (size_t i = start; i < end; i++) {
-            IDX_T idx = mat.adj_indices[i];
+            uint32_t idx = mat.adj_indices[i];
             ref_result[row_idx] += mat.adj_data[i] * vector[idx];
         }
     }
+}
+void compute_ref(
+    spmv::io::CSRMatrix<int> &mat,
+    xhl::aligned_vector<int> &vector,
+    std::vector<int> &ref_result,
+    size_t iterations
+) {
+    ref_result.resize(mat.num_rows);
+    std::vector<int> vec0(vector.begin(), vector.end()), vec1(vector.size());
+    for (size_t i = 0; i < iterations; i++)
+        compute_ref(mat, i%2==0 ? vec0 : vec1, i%2==0 ? vec1 : vec0);
+    std::copy((iterations%2==0 ? vec0 : vec1).begin(), (iterations%2==0 ? vec0 : vec1).end(), ref_result.begin());
 }
 
 //----------------------------------------------------------------------------
 // Testbench
 //----------------------------------------------------------------------------
 int main(int argc, char** argv) {
+    const int N = 3;
     // parse arguments
-    if(argc != 2) {
-        std::cout << "Usage : " << argv[0] << "<xclbin path>" << std::endl;
+    if(argc < 3) {
+        std::cout << "Usage : " << argv[0] << " <xclbin path> <dataset path>" << std::endl;
         std::cout << "Aborting..." << std::endl;
         return 1;
     }
 
-    // generate matrix and tranfer it from float to int
+    //--------------------------------------------------------------------
+    // loading matrix data
+    //--------------------------------------------------------------------
+    std::cout << "INFO : Loading Dataset" << std::endl;
     spmv::io::CSRMatrix<float> mat_f =
-        spmv::io::load_csr_matrix_from_float_npz(
-        "/home/zs343/zs343/HiSparse/datasets/graph/gplus_108K_13M_csr_float32.npz"
-        );
-
+        spmv::io::load_csr_matrix_from_float_npz(argv[2]);
     spmv::io::CSRMatrix<int> mat_i = 
-        spmv::io::csr_matrix_convert_from_float<int>(mat_f);
+        spmv::io::csr_matrix_convert_from_float<int>(
+            mat_f
+        );
 
     //--------------------------------------------------------------------
     // generate input vector
     //--------------------------------------------------------------------
-    aligned_vector<int> vector_i(mat_i.num_cols); 
+    xhl::aligned_vector<int> vector_in(mat_i.num_cols); 
     std::generate(
-        vector_i.begin(), 
-        vector_i.end(), 
+        vector_in.begin(), 
+        vector_in.end(), 
         [&](){return int(rand() % 2);} 
     );
-    
-    std::vector<xhl::Device> devices = xhl::find_devices(
-        xhl::boards::alveo::u280::identifier
-    );
-    xhl::Device device = devices[0];
-    device.program_device(argv[1]);
 
+    //--------------------------------------------------------------------
+    // compute reference
+    //--------------------------------------------------------------------
+    std::vector<int> ref_result;
+    compute_ref(mat_i, vector_in, ref_result, N);
+    std::cout << "INFO : Compute reference complete!" << std::endl;
+
+    //--------------------------------------------------------------------
+    // data setup
+    //--------------------------------------------------------------------
+    xhl::aligned_vector<int> vector_out(mat_i.num_rows);
+    xhl::aligned_vector<int> adj_data(mat_i.adj_data.size());
+    xhl::aligned_vector<int> adj_indices(mat_i.adj_indices.size());
+    xhl::aligned_vector<int> adj_indptr(mat_i.adj_indptr.size());
+    std::copy(mat_i.adj_data.begin(), mat_i.adj_data.end(), adj_data.begin());
+    std::copy(mat_i.adj_indices.begin(), mat_i.adj_indices.end(), adj_indices.begin());
+    std::copy(mat_i.adj_indptr.begin(), mat_i.adj_indptr.end(), adj_indptr.begin());
+
+    //--------------------------------------------------------------------
+    // Compute Unit Setup
+    //--------------------------------------------------------------------
+    std::cout << "INFO : Distributed SpMV 3 Iterations Test" << std::endl;
     xhl::KernelSignature spmv = {
         "spmv",
         {{"values",  "int*"},
@@ -118,38 +142,33 @@ int main(int argc, char** argv) {
         {"num_rows", "int"},
         {"num_cols", "int"}}
     };
+    std::vector<xhl::Device> devices = xhl::find_devices(
+        xhl::boards::alveo::u280::identifier
+    );
+    xhl::Device device = devices[0];
+    device.program_device(argv[1]);   
 
     xhl::ComputeUnit spmv_cu(spmv);
     spmv_cu.bind(&device);
-
-    aligned_vector<int> vector_o(mat_i.num_rows); 
-    std::fill(vector_o.begin(), vector_o.end(), 0);
-    // aligned_vector<int> vector_o(num_cols);
-
-    // only for test
-    std::vector<int> adj_data_out(6);
-    std::vector<uint32_t> adj_indices_out(6);
-    std::vector<uint32_t> adj_indptr_out(4);
-    std::vector<int> vector_in_out(mat_i.num_cols);
     
     device.create_buffer(
-        "values", (mat_i.adj_data.size()) * sizeof(int), mat_i.adj_data.data(),
+        "values", (adj_data.size()) * sizeof(int), adj_data.data(),
         xhl::BufferType::ReadOnly, xhl::boards::alveo::u280::HBM[0]
     );
     device.create_buffer(
-        "col_idx", (mat_i.adj_indices.size()) * sizeof(int), mat_i.adj_indices.data(),
+        "col_idx", (adj_indices.size()) * sizeof(int), adj_indices.data(),
         xhl::BufferType::ReadOnly, xhl::boards::alveo::u280::HBM[1]
     );
     device.create_buffer(
-        "row_ptr", (mat_i.adj_indptr.size()) * sizeof(int), mat_i.adj_indptr.data(),
+        "row_ptr", (adj_indptr.size()) * sizeof(int), adj_indptr.data(),
         xhl::BufferType::ReadOnly, xhl::boards::alveo::u280::HBM[2]
     );
     device.create_buffer(
-        "vector_in", (mat_i.num_cols) * sizeof(int), vector_i.data(),
+        "vector_in", (vector_in.size()) * sizeof(int), vector_in.data(),
         xhl::BufferType::ReadOnly, xhl::boards::alveo::u280::HBM[3]
     );
     device.create_buffer(
-        "vector_out", (mat_i.num_rows) * sizeof(int), vector_o.data(), 
+        "vector_out", (vector_out.size()) * sizeof(int), vector_out.data(), 
         xhl::BufferType::WriteOnly, xhl::boards::alveo::u280::HBM[4]
     );
 
@@ -158,31 +177,32 @@ int main(int argc, char** argv) {
     xhl::sync_data_htod(&device, "row_ptr");
     xhl::sync_data_htod(&device, "vector_in");
 
-    spmv_cu.launch(
-        device.get_buffer("values"),
-        device.get_buffer("col_idx"),
-        device.get_buffer("row_ptr"),
-        device.get_buffer("vector_in"),
-        device.get_buffer("vector_out"),
-        mat_i.num_rows,
-        mat_i.num_cols
-    );
-    device.finish_all_tasks();
+    for (int i = 0; i < N; i++) {
+        spmv_cu.launch(
+            device.get_buffer("values"),
+            device.get_buffer("col_idx"),
+            device.get_buffer("row_ptr"),
+            device.get_buffer("vector_in"),
+            device.get_buffer("vector_out"),
+            mat_i.num_rows,
+            mat_i.num_cols
+        );
+        device.finish_all_tasks();
+        if (i != N-1) {
+            xhl::sync_data_dtoh(&device, "vector_out");
+            std::copy(vector_out.begin(), vector_out.end(), vector_in.begin());
+            xhl::sync_data_htod(&device, "vector_in");
+        }
+    }
     xhl::sync_data_dtoh(&device, "vector_out");
 
-    aligned_vector<int> ref_result;
-    compute_ref(mat_i, vector_i, ref_result);
-
-    bool pass = check_buffer(vector_o, ref_result);
+    //--------------------------------------------------------------------
+    // compare result
+    //--------------------------------------------------------------------
+    bool pass = check_buffer(vector_out, ref_result);
     std::cout << (pass ? "[INFO]: Test Passed !" : "[ERROR]: Test Failed!") << std::endl;
     
     std::cout << "INFO : SpMV kernel complete!" << std::endl;
-
-    //--------------------------------------------------------------------
-    // compute reference
-    //--------------------------------------------------------------------
-    
-    std::cout << "INFO : Compute reference complete!" << std::endl;
 
     return 0;
 }

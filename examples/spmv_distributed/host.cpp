@@ -143,9 +143,10 @@ void compute_ref(
 // Testbench
 //----------------------------------------------------------------------------
 int main(int argc, char** argv) {
+    const int N = 3;
     // parse arguments
-    if(argc != 2) {
-        std::cout << "Usage : " << argv[0] << "<xclbin path>" << std::endl;
+    if(argc < 3) {
+        std::cout << "Usage : " << argv[0] << " <xclbin path> <dataset path>" << std::endl;
         std::cout << "Aborting..." << std::endl;
         return 1;
     }
@@ -154,12 +155,11 @@ int main(int argc, char** argv) {
     // loading matrix data
     //--------------------------------------------------------------------
     std::cout << "INFO : Loading Dataset" << std::endl;
-    spmv::io::CSRMatrix<float> matf = spmv::io::load_csr_matrix_from_float_npz(
-        "./datasets/graph/gplus_108K_13M_csr_float32.npz"
-        );
-    spmv::io::CSRMatrix<int> mat = 
+    spmv::io::CSRMatrix<float> mat_f =
+        spmv::io::load_csr_matrix_from_float_npz(argv[2]);
+    spmv::io::CSRMatrix<int> mat_i = 
         spmv::io::csr_matrix_convert_from_float<int>(
-            matf
+            mat_f
         );
     std::vector<spmv::io::CSRMatrix<int>> pmat = {
         partitionRows(mat, 0, 2), partitionRows(mat, 1, 2)
@@ -174,6 +174,13 @@ int main(int argc, char** argv) {
         vector_i.end(), 
         [&](){return int(rand() % 2);}
     );
+
+    //--------------------------------------------------------------------
+    // compute reference
+    //--------------------------------------------------------------------
+    std::vector<int> ref_result;
+    compute_ref(mat, vector_i, ref_result, N);
+    std::cout << "INFO : Compute reference complete!" << std::endl;
 
     //--------------------------------------------------------------------
     // data setup
@@ -264,7 +271,6 @@ int main(int argc, char** argv) {
     //--------------------------------------------------------------------
     // Compute Unit Launch
     //--------------------------------------------------------------------
-    int N = 3;
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < 2; j++) {
             cus[j].launch(
@@ -280,10 +286,12 @@ int main(int argc, char** argv) {
         for (int j = 0; j < 2; j++)
             devices[j].finish_all_tasks();
 
-        link_00->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
-        link_01->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
-        link_11->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
-        link_10->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
+        if (i != N-1) {
+            link_00->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
+            link_01->transfer("vector_out", "vector_in", 0, 0, pmat[0].num_rows * sizeof(int));
+            link_11->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
+            link_10->transfer("vector_out", "vector_in", 0, pmat[0].num_rows * sizeof(int), pmat[1].num_rows * sizeof(int));
+        }
     }
     
     for (xhl::Device device : devices)
@@ -292,16 +300,9 @@ int main(int argc, char** argv) {
         device.finish_all_tasks();
 
     //--------------------------------------------------------------------
-    // compute reference
-    //--------------------------------------------------------------------
-    std::vector<int> ref_result;
-    compute_ref(mat, vector_i, ref_result, N);
-    std::cout << "INFO : Compute reference complete!" << std::endl;
-
-    //--------------------------------------------------------------------
     // compare result
     //--------------------------------------------------------------------
-    std::vector<int> vector_o(mat.num_rows);
+    std::vector<int> vector_out(mat.num_rows);
     std::copy(vector_out_vec[0].begin(), vector_out_vec[0].end(), vector_o.begin());
     std::copy(vector_out_vec[1].begin(), vector_out_vec[1].end(), vector_o.begin()+pmat[0].num_rows);
     bool pass = check_buffer(vector_o, ref_result);
