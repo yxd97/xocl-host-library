@@ -10,18 +10,33 @@
 #include "xocl-host-lib.hpp"
 #include "compute_unit.hpp"
 #include "module.hpp"
+#include "device.hpp"
 
 namespace xhl{
 class Module_vvadd : public xhl::Module {
     public:
-    std::unordered_map<std::string, ComputeUnit> _compute_units;
+    ComputeUnit* vvadd_cu;
 
-    void bind_cu(
-        const std::unordered_map<std::string, ComputeUnit> cus
-    ) override {
-        this->_compute_units.insert(cus.begin(), cus.end());    
-    }
-    bool host(std::string xcl_bin_path);
+    const KernelSignature vvadd = {
+        "vvadd", {
+            {"in1", "int*"},
+            {"in2", "int*"},
+            {"out", "int*"},
+            {"DATA_SIZE", "int"}
+        }
+    };
+
+    void initialize(std::vector<Device>& devices) override;
+
+    void free_cu() override;
+
+    ~Module_vvadd();
+
+    std::vector<int> run(
+        std::vector<int> in1, 
+        std::vector<int> in2,
+        std::vector<int> out
+    );
 };
 } // namespace xhl
 #endif // MODULE_VVADD_HPP

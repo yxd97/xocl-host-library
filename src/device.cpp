@@ -26,14 +26,9 @@ void Device::create_buffer(
             throw std::runtime_error("Invalid buffer type");
         break;
     }
-    cl_mem_ext_ptr_t eptr;
-    eptr.flags = memory_channel_name;
-    eptr.obj = data_ptr;
-    eptr.param = 0;
-    // this->_ext_ptrs[name].flags = memory_channel_name;
-    // this->_ext_ptrs[name].obj = data_ptr;
-    // this->_ext_ptrs[name].param = 0;
-    this->_ext_ptrs[name] = eptr;
+    this->_ext_ptrs[name].flags = memory_channel_name;
+    this->_ext_ptrs[name].obj = data_ptr;
+    this->_ext_ptrs[name].param = 0;
     cl_int err = 0;
     this->_buffers[name] = cl::Buffer(
         this->_context,
@@ -92,6 +87,14 @@ void Device::program_device(
     }
 }
 
+ComputeUnit* Device::find(const KernelSignature &signature) {
+    // create the computeunit depending on signature, bind it to the device
+    // and return the computeunit
+    ComputeUnit* cu = new ComputeUnit(signature);
+    cu->bind(this);
+    return cu;
+}
+
 std::string Device::name() {
     return this->_device.getInfo<CL_DEVICE_NAME>();
 }
@@ -132,8 +135,7 @@ void Device::finish_all_tasks() {
 
 void nb_sync_data_htod(xhl::Device* device, const std::string &buffer_name) {
     cl_int err = device->command_q.enqueueMigrateMemObjects(
-        // {device->get_buffer(buffer_name)},
-        {device->_buffers[buffer_name]},
+        {device->get_buffer(buffer_name)},
         0 /* 0 means from host */
     );
     if (err != CL_SUCCESS) {
@@ -147,8 +149,7 @@ void nb_sync_data_htod(xhl::Device* device, const std::string &buffer_name) {
 
 void nb_sync_data_dtoh(xhl::Device* device, const std::string &buffer_name) {
     cl_int err = device->command_q.enqueueMigrateMemObjects(
-        // {device->get_buffer(buffer_name)},
-        {device->_buffers[buffer_name]},
+        {device->get_buffer(buffer_name)},
         CL_MIGRATE_MEM_OBJECT_HOST
     );
     if (err != CL_SUCCESS) {
