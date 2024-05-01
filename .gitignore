@@ -23,5 +23,13 @@ xsa.xml
 .run
 
 # compiled host binaries
-spmv_host
+host
+
+# compiled kernel binaries
+*.xo
+*.xo.compile_summary
+*.xclbin
+*.xclbin.info
+*.xclbin.link_summary
+
 
