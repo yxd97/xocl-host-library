@@ -1,4 +1,3 @@
-xcl2_SRCS:=${REPO_ROOT}/xcl2/xcl2.cpp
-xcl2_HDRS:=${REPO_ROOT}/xcl2/xcl2.hpp
-
-xcl2_CXXFLAGS:=-I${REPO_ROOT}/xcl2
+xcl2_CXXFLAGS:=-I${XCL2_LIB_DIR}
+xcl2_SRCS:=${XCL2_LIB_DIR}/xcl2.cpp
+xcl2_HDRS:=${XCL2_LIB_DIR}/xcl2.hpp

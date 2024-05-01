@@ -33,3 +33,10 @@ host
 *.xclbin.link_summary
 
 
+examples/*/*.xclbin
+examples/*/*.xclbin.info
+examples/*/*.xclbin.link_summary
+
+examples/*/*.build_output.sw_emu
+examples/*/*.build_output.hw_emu
+examples/*/*.build_output.hw

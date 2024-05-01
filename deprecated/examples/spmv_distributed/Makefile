@@ -11,7 +11,7 @@ FREQ := 450
 DEVICE = /opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
 TEMP_DIR := ./build.$(TARGET)
 BUILD_DIR := ./build_output.$(TARGET)
-CFGFILE := examples/spmv/spmv.ini
+CFGFILE := examples/spmv_distributed/spmv.ini
 
 
 VPP = v++
@@ -23,7 +23,7 @@ CXXFLAGS += -I$(CNPY_INCLUDE)
 LDFLAGS += -L$(CNPY_LIB) -lcnpy
 
 # Include data loader
-include $(ABS_COMMON_REPO)/examples/spmv/data.mk
+include $(ABS_COMMON_REPO)/examples/spmv_distributed/data.mk
 CXXFLAGS += $(data_loader_CXXFLAGS)
 
 # Include host Libraries
@@ -42,7 +42,7 @@ LDFLAGS += $(xhl_LDFLAGS)
 HOST_SRCS += $(xhl_SRCS)
 
 # host code
-HOST_SRCS += $(ABS_COMMON_REPO)/examples/spmv/host.cpp
+HOST_SRCS += $(ABS_COMMON_REPO)/examples/spmv_distributed/host.cpp
 
 # Host compiler global settings
 CXXFLAGS += $(IDIR) -Wall -O0 -g
