@@ -34,7 +34,7 @@ exe: $(HOST_PROG_NAME)
 kernel: $(KERNEL_NAME).xclbin emconfig.json
 
 run: all
-	$(HOST_PROG_NAME) $(TARGET) $(KERNEL_NAME).xclbin \
+	XCL_EMULATION_MODE=$(TARGET) $(HOST_PROG_NAME) $(KERNEL_NAME).xclbin \
 	/work/shared/common/project_build/graphblas/data/sparse_matrix_graph/uniform_10K_10_csr_float32.npz
 
 #===============================================================================
