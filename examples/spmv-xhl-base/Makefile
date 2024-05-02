@@ -5,7 +5,9 @@ XOCL_HOST_LIB := $(REPO_ROOT)
 include $(XOCL_HOST_LIB)/xhl.mk
 HOST_SRCS += $(xhl_SRCS)
 HOST_CC_FLAGS += $(xhl_CXXFLAGS)
+HOST_CC_FLAGS += -I$(CNPY_INCLUDE)
 HOST_LD_FLAGS += $(xhl_LDFLAGS)
+HOST_LD_FLAGS += -L$(CNPY_LIB) -lcnpy
 
 #===============================================================================
 # Project-specific variables
@@ -40,7 +42,8 @@ KERNEL_HLS_FLAGS += -k $(KERNEL_NAME)
 KERNEL_HLS_FLAGS += --kernel_frequency $(FREQ)
 KERNEL_HLS_FLAGS += --save-temps --temp_dir $(HLS_DIR)
 
-# TODO: add rules to make .xo
+$(KERNEL_NAME).xo: $(KERNEL_NAME).cpp
+	$(MAKE_XO) $(KERNEL_OPT) $(KERNEL_HLS_FLAGS) $< -o $@
 
 # make .xclbin
 KERNEL_BUILD_FLAGS += -t $(TARGET)
@@ -48,7 +51,8 @@ KERNEL_BUILD_FLAGS += --platform $(PLATFORM)
 KERNEL_BUILD_FLAGS += --kernel_frequency $(FREQ)
 KERNEL_BUILD_FLAGS += --save-temps --temp_dir $(LINK_DIR)
 
-# TODO: add rules to make .xclbin
+$(KERNEL_NAME).xclbin: $(KERNEL_NAME).xo $(KERNEL_NAME).link.config
+	$(MAKE_XCLBIN) $(KERNEL_OPT) $(KERNEL_BUILD_FLAGS) $< -o $@
 
 # emulation configuration
 emconfig.json:
@@ -63,7 +67,8 @@ else
 HOST_OPT := -O2
 endif
 
-# TODO: add rules to build host
+$(HOST_PROG_NAME): $(HOST_PROG_NAME).cpp $(HOST_SRCS)
+	$(MAKE_HOST) $(HOST_OPT) $(HOST_CC_FLAGS) $(HOST_LD_FLAGS) $^ -o $@
 
 #===============================================================================
 # Cleaning
@@ -74,5 +79,5 @@ clean:
 
 cleanall: clean
 	$(RMDIR) $(CLEANALL_ENTRIES)
-	$(RMDIR) $(KERNEL_NAME).xclbin $(KERNEL_NAME).xo
+	$(RMDIR) $(KERNEL_NAME).xclbin* $(KERNEL_NAME).xo* xsa.xml
 	$(RMDIR) $(HLS_DIR) $(LINK_DIR) $(EMCONFIG_FILE)
