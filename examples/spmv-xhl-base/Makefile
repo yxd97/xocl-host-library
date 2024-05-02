@@ -5,9 +5,16 @@ XOCL_HOST_LIB := $(REPO_ROOT)
 include $(XOCL_HOST_LIB)/xhl.mk
 HOST_SRCS += $(xhl_SRCS)
 HOST_CC_FLAGS += $(xhl_CXXFLAGS)
-HOST_CC_FLAGS += -I$(CNPY_INCLUDE)
 HOST_LD_FLAGS += $(xhl_LDFLAGS)
-HOST_LD_FLAGS += -L$(CNPY_LIB) -lcnpy
+
+# host flags for sparse-io
+include $(EXAMPLES_DIR)/sparse-io/sparse-io.mk
+HOST_SRCS += $(SPARSE_IO_SRCS)
+HOST_CC_FLAGS += $(SPARSE_IO_CXXFLAGS)
+HOST_LD_FLAGS += $(SPARSE_IO_LDFLAGS)
+
+# include profiling infrastructure (at examples/profiling-infra.h)
+HOST_CC_FLAGS += -I$(EXAMPLES_DIR)
 
 #===============================================================================
 # Project-specific variables
@@ -21,10 +28,14 @@ LINK_DIR := build_$(TARGET)_link
 #===============================================================================
 # make rules
 #===============================================================================
-.PHONY: all exe kernel
+.PHONY: all exe kernel run
 all: exe kernel
 exe: $(HOST_PROG_NAME)
 kernel: $(KERNEL_NAME).xclbin emconfig.json
+
+run: all
+	$(HOST_PROG_NAME) $(TARGET) $(KERNEL_NAME).xclbin \
+	/work/shared/common/project_build/graphblas/data/sparse_matrix_graph/uniform_10K_10_csr_float32.npz
 
 #===============================================================================
 # Rules to build the xclbin
@@ -80,4 +91,4 @@ clean:
 cleanall: clean
 	$(RMDIR) $(CLEANALL_ENTRIES)
 	$(RMDIR) $(KERNEL_NAME).xclbin* $(KERNEL_NAME).xo* xsa.xml
-	$(RMDIR) $(HLS_DIR) $(LINK_DIR) $(EMCONFIG_FILE)
+	$(RMDIR) build_* $(EMCONFIG_FILE)

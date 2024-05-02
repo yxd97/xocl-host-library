@@ -12,10 +12,13 @@ LINK_DIR := build_$(TARGET)_link
 #===============================================================================
 # make rules
 #===============================================================================
-.PHONY: all exe kernel
+.PHONY: all exe kernel run
 all: exe kernel
 exe: $(HOST_PROG_NAME)
 kernel: $(KERNEL_NAME).xclbin emconfig.json
+
+run: all
+	$(HOST_PROG_NAME) $(TARGET) $(KERNEL_NAME).xclbin 1234
 
 #===============================================================================
 # Rules to build the xclbin
@@ -71,4 +74,4 @@ clean:
 cleanall: clean
 	$(RMDIR) $(CLEANALL_ENTRIES)
 	$(RMDIR) $(KERNEL_NAME).xclbin $(KERNEL_NAME).xo
-	$(RMDIR) $(HLS_DIR) $(LINK_DIR) $(EMCONFIG_FILE)
+	$(RMDIR) build_* $(EMCONFIG_FILE)

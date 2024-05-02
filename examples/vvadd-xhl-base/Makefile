@@ -24,6 +24,9 @@ all: exe kernel
 exe: $(HOST_PROG_NAME)
 kernel: $(KERNEL_NAME).xclbin emconfig.json
 
+run: all
+	$(HOST_PROG_NAME) $(TARGET) $(KERNEL_NAME).xclbin 1234
+
 #===============================================================================
 # Rules to build the xclbin
 #===============================================================================
