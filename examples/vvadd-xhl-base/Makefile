@@ -65,7 +65,8 @@ else
 HOST_OPT := -O2
 endif
 
-# TODO: add rules to build host
+$(HOST_PROG_NAME): $(HOST_PROG_NAME).cpp $(HOST_SRCS)
+	$(MAKE_HOST) $(HOST_OPT) $(HOST_CC_FLAGS) $(HOST_LD_FLAGS) $^ -o $@
 
 #===============================================================================
 # Cleaning
