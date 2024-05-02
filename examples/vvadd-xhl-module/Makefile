@@ -7,6 +7,10 @@ HOST_SRCS += $(xhl_SRCS)
 HOST_CC_FLAGS += $(xhl_CXXFLAGS)
 HOST_LD_FLAGS += $(xhl_LDFLAGS)
 
+include $(XOCL_HOST_LIB)/examples/vvadd-xhl-module/module_vvadd/module_vvadd.mk
+HOST_CC_FLAGS += $(module_vvadd_CXXFLAGS)
+HOST_SRCS += $(module_vvadd_SRCS)
+
 #===============================================================================
 # Project-specific variables
 #===============================================================================
@@ -65,7 +69,8 @@ else
 HOST_OPT := -O2
 endif
 
-# TODO: add rules to build host
+$(HOST_PROG_NAME): $(HOST_PROG_NAME).cpp $(HOST_SRCS)
+	$(MAKE_HOST) $(HOST_OPT) $(HOST_CC_FLAGS) $(HOST_LD_FLAGS) $^ -o $@
 
 #===============================================================================
 # Cleaning
