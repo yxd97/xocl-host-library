@@ -1,14 +1,10 @@
-#ifndef GRAPHLILY_IO_DATA_LOADER_H_
-#define GRAPHLILY_IO_DATA_LOADER_H_
+#ifndef SPARSE_IO_HPP
+#define SPARSE_IO_HPP
 
 #include <cstdint>
 #include <vector>
 
 #include "cnpy.h"
-
-
-namespace spmv {
-namespace io {
 
 //--------------------------------------------------
 // Compressed Sparse Row (CSR) format support
@@ -156,7 +152,4 @@ CSCMatrix<data_type> csc_matrix_convert_from_float(CSCMatrix<float> const &in) {
     return out;
 }
 
-}  // namespace io
-}  // namespace spmv
-
-#endif  // GRAPHLILY_IO_DATA_LOADER_H_
+#endif  // SPARSE_IO_HPP

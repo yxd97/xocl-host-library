@@ -1,5 +1,5 @@
-#ifndef TIMER_H
-#define TIMER_H
+#ifndef PROFILING_INFRA_H
+#define PROFILING_INFRA_H
 #include <chrono>
 #include <iostream>
 

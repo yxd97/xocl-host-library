@@ -75,4 +75,4 @@ clean:
 cleanall: clean
 	$(RMDIR) $(CLEANALL_ENTRIES)
 	$(RMDIR) $(KERNEL_NAME).xclbin $(KERNEL_NAME).xo
-	$(RMDIR) $(HLS_DIR) $(LINK_DIR) $(EMCONFIG_FILE)
+	$(RMDIR) build_* $(EMCONFIG_FILE)

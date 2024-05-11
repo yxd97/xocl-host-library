@@ -57,6 +57,10 @@ help:
 	$(ECHO) "    DEBUG_KERNEL=[0|1]: build kernel with -g"
 	$(ECHO) "      default: 0 (-O3)"
 	$(ECHO) ""
+	$(ECHO) "  make run: build and run host and kernel (with default host program arguments)"
+	$(ECHO) "    TARGET=[sw_emu|hw_emu|hw]: kernel build target "
+	$(ECHO) "      default: sw_emu"
+	$(ECHO) ""
 	$(ECHO) "  make clean: remove all generated files that are easy to regenerate"
 	$(ECHO) ""
 	$(ECHO) "  make cleanall: remove all temporary files, kernel xclbin, and build projects"\
