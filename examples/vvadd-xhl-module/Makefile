@@ -52,6 +52,7 @@ KERNEL_BUILD_FLAGS += -t $(TARGET)
 KERNEL_BUILD_FLAGS += --platform $(PLATFORM)
 KERNEL_BUILD_FLAGS += --kernel_frequency $(FREQ)
 KERNEL_BUILD_FLAGS += --save-temps --temp_dir $(LINK_DIR)
+KERNEL_BUILD_FLAGS += --config $(KERNEL_NAME).link.config
 
 $(KERNEL_NAME).xclbin: $(KERNEL_NAME).xo $(KERNEL_NAME).link.config
 	$(MAKE_XCLBIN) $(KERNEL_OPT) $(KERNEL_BUILD_FLAGS) $< -o $@

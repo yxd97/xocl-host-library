@@ -5,9 +5,16 @@ XOCL_HOST_LIB := $(REPO_ROOT)
 include $(XOCL_HOST_LIB)/xhl.mk
 HOST_SRCS += $(xhl_SRCS)
 HOST_CC_FLAGS += $(xhl_CXXFLAGS)
-HOST_CC_FLAGS += -I$(CNPY_INCLUDE)
 HOST_LD_FLAGS += $(xhl_LDFLAGS)
-HOST_LD_FLAGS += -L$(CNPY_LIB) -lcnpy
+
+# host flags for sparse-io
+include $(EXAMPLES_DIR)/sparse-io/sparse-io.mk
+HOST_SRCS += $(SPARSE_IO_SRCS)
+HOST_CC_FLAGS += $(SPARSE_IO_CXXFLAGS)
+HOST_LD_FLAGS += $(SPARSE_IO_LDFLAGS)
+
+# include profiling infrastructure (at examples/profiling-infra.h)
+HOST_CC_FLAGS += -I$(EXAMPLES_DIR)
 
 #===============================================================================
 # Project-specific variables
@@ -50,6 +57,7 @@ KERNEL_BUILD_FLAGS += -t $(TARGET)
 KERNEL_BUILD_FLAGS += --platform $(PLATFORM)
 KERNEL_BUILD_FLAGS += --kernel_frequency $(FREQ)
 KERNEL_BUILD_FLAGS += --save-temps --temp_dir $(LINK_DIR)
+KERNEL_BUILD_FLAGS += --config $(KERNEL_NAME).link.config
 
 $(KERNEL_NAME).xclbin: $(KERNEL_NAME).xo $(KERNEL_NAME).link.config
 	$(MAKE_XCLBIN) $(KERNEL_OPT) $(KERNEL_BUILD_FLAGS) $< -o $@
